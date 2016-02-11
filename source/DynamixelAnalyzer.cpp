@@ -2,6 +2,14 @@
 #include "DynamixelAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
+unsigned char reverse(unsigned char b)
+{
+   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+   return b;
+}
+
 DynamixelAnalyzer::DynamixelAnalyzer()
 :	Analyzer(),  
 	mSettings( new DynamixelAnalyzerSettings() ),
@@ -42,13 +50,17 @@ void DynamixelAnalyzer::WorkerThread()
 		mSerial->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
 
 		//U64 starting_sample = mSerial->GetSampleNumber();
-
+		if ( DecodeIndex == DE_HEADER1 )
+		{
+			starting_sample = mSerial->GetSampleNumber();
+		}
 		mSerial->Advance( samples_to_first_center_of_first_current_byte_bit );
 
 		for( U32 i=0; i<8; i++ )
 		{
 			//let's put a dot exactly where we sample this bit:
-			//mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
+			//NOTE: Dot, ErrorDot, Square, ErrorSquare, UpArrow, DownArrow, X, ErrorX, Start, Stop, One, Zero
+			//mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Start, mSettings->mInputChannel );
 
 			if( mSerial->GetBitState() == BIT_HIGH )
 				current_byte |= mask;
@@ -58,6 +70,9 @@ void DynamixelAnalyzer::WorkerThread()
 			mask = mask >> 1;
 		}
 
+		//TODO: Inverting bits here because I cannot yet find how to add Inverstion to Settings
+		current_byte = reverse( current_byte );
+
 		//Process new byte
 		
 		switch ( DecodeIndex )
@@ -66,8 +81,12 @@ void DynamixelAnalyzer::WorkerThread()
 				if ( current_byte == 0xFF )
 				{
 					DecodeIndex = DE_HEADER2;
-					starting_sample = mSerial->GetSampleNumber();
+					//starting_sample = mSerial->GetSampleNumber();
 					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
+				}
+				else
+				{
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Stop, mSettings->mInputChannel );
 				}
 			break;
 			case DE_HEADER2:
@@ -75,6 +94,7 @@ void DynamixelAnalyzer::WorkerThread()
 				{
 					DecodeIndex = DE_ID;
 					mChecksum = 1;
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
 				}
 				else
 				{
@@ -87,6 +107,7 @@ void DynamixelAnalyzer::WorkerThread()
 				{   
 					mID = current_byte;
 					DecodeIndex = DE_LENGTH;
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::One, mSettings->mInputChannel );
 				}
 				else
 				{
@@ -97,15 +118,18 @@ void DynamixelAnalyzer::WorkerThread()
 			case DE_LENGTH:
 				mLength = current_byte;
 				DecodeIndex = DE_INSTRUCTION;
+				mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Zero, mSettings->mInputChannel );
 			break;
 			case DE_INSTRUCTION:
 				mInstruction = current_byte;
 				mCount = 0;
 				DecodeIndex = DE_DATA;
+				mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::DownArrow, mSettings->mInputChannel );
 				if ( mLength == 2 ) DecodeIndex = DE_CHECKSUM;
 			break;
 			case DE_DATA:
 				mData[ mCount++ ] = current_byte;
+				mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::UpArrow, mSettings->mInputChannel );
 				if ( mCount >= mLength - 2 )
 				{
 					DecodeIndex = DE_CHECKSUM;
@@ -127,6 +151,8 @@ void DynamixelAnalyzer::WorkerThread()
 				Frame frame;
 				frame.mData1 = mID;
 				frame.mData2 = mInstruction;
+				frame.mData2 |= mChecksum << (1*8);
+				frame.mData2 |= mLength << (2*8);
 				//TODO: Use remaining bits in mData1&2 to present more packet information in the results. 
 				frame.mFlags = 0;
 				frame.mStartingSampleInclusive = starting_sample;

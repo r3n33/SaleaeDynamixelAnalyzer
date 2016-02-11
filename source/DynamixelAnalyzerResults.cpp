@@ -23,43 +23,66 @@ void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& cha
 
 	char number_str[128];
 	AnalyzerHelpers::GetNumberString( frame.mData1, display_base, 8, number_str, 128 );
-	if ( frame.mData2 == DynamixelAnalyzer::APING )
+	char packet_checksum[8];
+	AnalyzerHelpers::GetNumberString( ( frame.mData2 >> ( 1 * 8 ) ) & 0xff, display_base, 8, packet_checksum, 8 );
+	char packet_length[8];
+	AnalyzerHelpers::GetNumberString( ( frame.mData2 >> ( 2 * 8 ) ) & 0xff, display_base, 8, packet_length, 8 );
+
+	char packet_type = frame.mData2 & 0xff;
+	//char checksum = ( frame.mData2 >> ( 1 * 8 ) ) & 0xff;
+
+	if ( packet_type == DynamixelAnalyzer::NONE )
+	{
+		AddResultString( "RP" );
+		AddResultString( "REPLY" );
+		AddResultString( "REPLY ID(", number_str , ")" );
+		AddResultString( "REPLY ID(", number_str , ") LEN(", packet_length, ")" );
+		AddResultString( "REPLY ID(", number_str , ") LEN(", packet_length, ") CHKSUM: ", packet_checksum );
+	}
+	else if ( packet_type == DynamixelAnalyzer::APING )
 	{
 		AddResultString( "P" );
 		AddResultString( "PING" );
 		AddResultString( "PING ID(", number_str , ")" );
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::READ )
+	else if ( packet_type == DynamixelAnalyzer::READ )
 	{
 		AddResultString( "R" );
 		AddResultString( "READ" );
 		AddResultString( "READ ID(", number_str , ")" );
+		AddResultString( "READ ID(", number_str , ") LEN(", packet_length, ")" );
+		AddResultString( "READ ID(", number_str , ") LEN(", packet_length, ") CHKSUM: ", packet_checksum );
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::WRITE )
+	else if ( packet_type == DynamixelAnalyzer::WRITE )
 	{
 		AddResultString( "W" );
 		AddResultString( "WRITE" );
 		AddResultString( "WRITE ID(", number_str , ")" );
+		AddResultString( "WRITE ID(", number_str , ") LEN(", packet_length, ")" );
+		AddResultString( "WRITE ID(", number_str , ") LEN(", packet_length, ") CHKSUM: ", packet_checksum );
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::REG_WRITE )
+	else if ( packet_type == DynamixelAnalyzer::REG_WRITE )
 	{
 		AddResultString( "RW" );
 		AddResultString( "REG_WRITE" );
 		AddResultString( "REG_WRITE ID(", number_str , ")" );
+		AddResultString( "REG_WRITE ID(", number_str , ") LEN(", packet_length, ")" );
+		AddResultString( "REG_WRITEz ID(", number_str , ") LEN(", packet_length, ") CHKSUM: ", packet_checksum );
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::ACTION )
+	else if ( packet_type == DynamixelAnalyzer::ACTION )
 	{
 		AddResultString( "A" );
 		AddResultString( "ACTION" );
-		AddResultString( "ACTION ID(", number_str , ")" );
+		AddResultString( "ACTION ID(", number_str , ")" );		
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::RESET )
+	else if ( packet_type == DynamixelAnalyzer::RESET )
 	{
 		AddResultString( "RS" );
 		AddResultString( "RESET" );
 		AddResultString( "RESET ID(", number_str , ")" );
+		AddResultString( "RESET ID(", number_str , ") LEN(", packet_length, ")" );
 	}
-	else if ( frame.mData2 == DynamixelAnalyzer::SYNC_WRITE )
+	else if ( packet_type == DynamixelAnalyzer::SYNC_WRITE )
 	{
 		AddResultString( "S" );
 		AddResultString( "SYNC_WRITE" );
