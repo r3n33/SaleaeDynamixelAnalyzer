@@ -57,6 +57,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& cha
 	{
 		AddResultString( "RS" );
 		AddResultString( "RESET" );
+		AddResultString( "RESET ID(", number_str , ")" );
 	}
 	else if ( frame.mData2 == DynamixelAnalyzer::SYNC_WRITE )
 	{

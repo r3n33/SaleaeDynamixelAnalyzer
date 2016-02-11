@@ -5,7 +5,8 @@
 DynamixelAnalyzer::DynamixelAnalyzer()
 :	Analyzer(),  
 	mSettings( new DynamixelAnalyzerSettings() ),
-	mSimulationInitilized( false )
+	mSimulationInitilized( false ),
+	DecodeIndex( 0 )
 {
 	SetAnalyzerSettings( mSettings.get() );
 }
@@ -31,7 +32,6 @@ void DynamixelAnalyzer::WorkerThread()
 	U32 samples_per_bit = mSampleRateHz / mSettings->mBitRate;
 	U32 samples_to_first_center_of_first_current_byte_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
 
-	U8 last_byte = 0;
 	U64 starting_sample;
 
 	for( ; ; )
@@ -73,17 +73,26 @@ void DynamixelAnalyzer::WorkerThread()
 			case DE_HEADER2:
 				if ( current_byte == 0xFF )
 				{
-				DecodeIndex = DE_ID;
-				mChecksum = 1;
+					DecodeIndex = DE_ID;
+					mChecksum = 1;
 				}
-				else DecodeIndex = DE_HEADER1;
+				else
+				{
+					DecodeIndex = DE_HEADER1;
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::ErrorSquare, mSettings->mInputChannel );
+				}
 			break;
 			case DE_ID:
 				if ( current_byte != 0xFF )    // we are not allowed 3 0xff's in a row, ie. id != 0xff
 				{   
 					mID = current_byte;
 					DecodeIndex = DE_LENGTH;
-				}    
+				}
+				else
+				{
+					DecodeIndex = DE_HEADER1;
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::ErrorX, mSettings->mInputChannel );
+				}
 			break;
 			case DE_LENGTH:
 				mLength = current_byte;
@@ -107,12 +116,18 @@ void DynamixelAnalyzer::WorkerThread()
 				if (  ( ~mChecksum & 0xff ) == ( current_byte & 0xff ) ) 
 				{
 					// Checksums match!
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Dot, mSettings->mInputChannel );
+				}
+				else
+				{
+					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::ErrorDot, mSettings->mInputChannel );
 				}
 
 				//We have a new frame to save! 
 				Frame frame;
 				frame.mData1 = mID;
 				frame.mData2 = mInstruction;
+				//TODO: Use remaining bits in mData1&2 to present more packet information in the results. 
 				frame.mFlags = 0;
 				frame.mStartingSampleInclusive = starting_sample;
 				frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
