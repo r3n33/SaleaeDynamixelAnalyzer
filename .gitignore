@@ -1,0 +1,9 @@
+*.obj
+*.log
+*.tlog
+include/
+lib/
+*.exp
+*.iobj
+*.ipdb
+*.pdb
