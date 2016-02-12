@@ -149,11 +149,16 @@ void DynamixelAnalyzer::WorkerThread()
 
 				//We have a new frame to save! 
 				Frame frame;
-				frame.mData1 = mID;
-				frame.mData2 = mInstruction;
-				frame.mData2 |= mChecksum << (1*8);
-				frame.mData2 |= mLength << (2*8);
-				//TODO: Use remaining bits in mData1&2 to present more packet information in the results. 
+				frame.mType = mInstruction;		// Save the packet type in mType
+				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)); // encode id and length and checksum in data1
+
+				// Use mData2 to store up to 8 bytes of the packet data. 
+				frame.mData2 = 0;
+				U8 i =(mCount < 8)? mCount : 8;
+				while (i--)
+					frame.mData2 = (frame.mData2 << 8) | mData[i];
+
+				//TODO: Use remaining bits in mData1 to present more packet information in the results. 
 				frame.mFlags = 0;
 				frame.mStartingSampleInclusive = starting_sample;
 				frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
