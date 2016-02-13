@@ -136,6 +136,10 @@ void DynamixelAnalyzer::WorkerThread()
 				}
 			break;
 			case DE_CHECKSUM:
+				//We have a new frame to save! 
+				Frame frame;
+				frame.mFlags = 0;
+
 				DecodeIndex = DE_HEADER1;
 				if (  ( ~mChecksum & 0xff ) == ( current_byte & 0xff ) ) 
 				{
@@ -145,21 +149,21 @@ void DynamixelAnalyzer::WorkerThread()
 				else
 				{
 					mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::ErrorDot, mSettings->mInputChannel );
+					frame.mFlags = DISPLAY_AS_ERROR_FLAG;
 				}
 
-				//We have a new frame to save! 
-				Frame frame;
 				frame.mType = mInstruction;		// Save the packet type in mType
-				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)); // encode id and length and checksum in data1
+				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)) | (mData[0] << (3 * 8)); // encode id and length and checksum + 5 data bytes
+
+				// BUGBUG:: did two step as << 40 appears to error out...
+				U64 mTemp =  (mData[1] << (0 * 8)) | (mData[2] << (1 * 8)) | (mData[3] << (2 * 8)) | (mData[4] << (3 * 8));
+				frame.mData1 |= (mTemp << (4 * 8));
 
 				// Use mData2 to store up to 8 bytes of the packet data. 
-				frame.mData2 = 0;
-				U8 i =(mCount < 8)? mCount : 8;
-				while (i--)
-					frame.mData2 = (frame.mData2 << 8) | mData[i];
+				frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8));
+				mTemp = (mData[9] << (0 * 8)) | (mData[10] << (1 * 8)) | (mData[11] << (2 * 8)) | (mData[12] << (3 * 8));
+				frame.mData2 |= (mTemp << (4 * 8));
 
-				//TODO: Use remaining bits in mData1 to present more packet information in the results. 
-				frame.mFlags = 0;
 				frame.mStartingSampleInclusive = starting_sample;
 				frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
 
