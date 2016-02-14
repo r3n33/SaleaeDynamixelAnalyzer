@@ -22,6 +22,7 @@ protected:
 	void CreateSerialByte();
 	std::string mSerialText;
 	U32 mStringIndex;
+	U8	 mPacketIndex;
 
 	SimulationChannelDescriptor mSerialSimulationData;
 

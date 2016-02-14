@@ -16,10 +16,11 @@ DynamixelAnalyzerResults::~DynamixelAnalyzerResults()
 {
 }
 
-void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& channel, DisplayBase display_base )
+void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base)
 {
 	ClearResultStrings();
-	Frame frame = GetFrame( frame_index );
+	Frame frame = GetFrame(frame_index);
+	bool Package_Handled = false;
 
 	// Note: the mData1 and mData2 are encoded with as much of the data as we can fit.
 	// frame.mType has our = packet type
@@ -27,111 +28,72 @@ void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& cha
 	// mData2  data5-12
 
 	char id_str[128];
-	AnalyzerHelpers::GetNumberString( frame.mData1 & 0xff, display_base, 8, id_str, 128 );
+	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 128);
 	char packet_checksum[8];
-	AnalyzerHelpers::GetNumberString( ( frame.mData1 >> ( 1 * 8 ) ) & 0xff, display_base, 8, packet_checksum, 8 );
+	AnalyzerHelpers::GetNumberString((frame.mData1 >> (1 * 8)) & 0xff, display_base, 8, packet_checksum, 8);
 
-	char packet_length[8];
-	U8 packet_count_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
-	AnalyzerHelpers::GetNumberString( packet_count_bytes, display_base, 8, packet_length, 8 );
+	char Packet_length_string[8];
+	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
+	AnalyzerHelpers::GetNumberString(Packet_length, display_base, 8, Packet_length_string, 8);
 
-	char packet_type = frame.mType;
+	U8 packet_type = frame.mType;
 	//char checksum = ( frame.mData2 >> ( 1 * 8 ) ) & 0xff;
 
-	if ( packet_type == DynamixelAnalyzer::NONE )
+	if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
 	{
-		// BUGBUG: This is just one case of response (no errors)
-		// BUGBUG:: Almost direct cut and paste of write... Should cleanup use function...
-		char reg_count[8];
-		U8 count_data_bytes = packet_count_bytes - 2;
-		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 8);
-
-		AddResultString("RP");
-		AddResultString("REPLY");
-		AddResultString("RP(", id_str, ")");
-		AddResultString("RP(", id_str, ") LEN:", reg_count);
-		// Try to build string showing bytes
-		if (count_data_bytes)
-		{
-			// BUGBUG:: for now only handle 1 or 2 bytes...
-			char w1_str[8];
-			char params_str[40];
-			U64 shift_data = frame.mData1 >> (3 * 8);
-			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w1_str, 8);
-			sprintf_s(params_str, sizeof(params_str), ") LEN: %s D: %s", reg_count, w1_str);
-			AddResultString("RP(", id_str, params_str);
-
-			if (count_data_bytes > 1)
-			{
-				char w2_str[8];
-				shift_data >>= 8;	
-				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w2_str, 8);
-				sprintf_s(params_str, sizeof(params_str), ") LEN: %s D: %s, %s", reg_count, w1_str, w2_str);
-				AddResultString("RP(", id_str,  params_str);
-
-				if (count_data_bytes > 2)
-				{
-					// for more bytes lets try concatenating strings... 
-					// we can reuse some of the above strings, as params_str has our first two parameters. 
-					char remaining_data[100] = { 0 };
-					if (count_data_bytes > 13)
-						count_data_bytes = 13;	// Max bytes we can store
-					for (U8 i = 2; i < count_data_bytes; i++)
-					{
-						if (i == 5)
-						{
-							AddResultString("RP(", id_str, params_str, remaining_data);  // Add partial so depends on how large space
-							shift_data = frame.mData2;
-						}
-						else
-							shift_data >>= 8;
-						AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w2_str, 8);	// reuse string; 
-						strcat_s(remaining_data, sizeof(remaining_data), ", ");
-						strcat_s(remaining_data, sizeof(remaining_data), w2_str);
-					}
-					AddResultString("RP(", id_str, params_str, remaining_data);  // Add full one. 
-					AddResultString("REPLY(", id_str, params_str, remaining_data);  // Add full one. 
-				}
-			}
-		}
+		AddResultString("P");
+		AddResultString("PING");
+		AddResultString("PING ID(", id_str, ")");
+		Package_Handled = true;
 	}
-	else if ( packet_type == DynamixelAnalyzer::APING )
+	else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
 	{
-		AddResultString( "P" );
-		AddResultString( "PING" );
-		AddResultString( "PING ID(", id_str , ")" );
-	}
-	else if ( packet_type == DynamixelAnalyzer::READ )
-	{
-		// bugbug: assuming packet length of 4 <reg> <len>
 		char reg_start[8];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
 		char reg_count[8];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, 8);
 
-		AddResultString( "R" );
-		AddResultString( "READ" );
-		AddResultString( "RD(", id_str , ")" );
-		AddResultString( "RD(", id_str , ") REG:", reg_start );
-		AddResultString( "RD(", id_str , ") REG:", reg_start, " LEN:", reg_count);
-		AddResultString( "READ(", id_str, ") REG:", reg_start, " LEN:", reg_count);
+		AddResultString("R");
+		AddResultString("READ");
+		AddResultString("RD(", id_str, ")");
+		AddResultString("RD(", id_str, ") REG:", reg_start);
+		AddResultString("RD(", id_str, ") REG:", reg_start, " LEN:", reg_count);
+		AddResultString("READ(", id_str, ") REG:", reg_start, " LEN:", reg_count);
 		//		AddResultString( "READ(", id_str , ") REG:", reg_start, " LEN:", reg_count, " CHKSUM: ", packet_checksum );
+		Package_Handled = true;
 	}
-	else if ( packet_type == DynamixelAnalyzer::WRITE )
+	else if ( ((packet_type == DynamixelAnalyzer::WRITE) || (packet_type == DynamixelAnalyzer::REG_WRITE)) && (Packet_length > 3))
+
 	{
+		// Assume packet must have at least two data bytes: starting register and at least one byte.
 		char reg_start[8];
 		char reg_count[8];
-		U8 count_data_bytes = packet_count_bytes - 2;
+		U8 count_data_bytes = Packet_length - 3;
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
 		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 8);
 
-		AddResultString( "W" );
-		AddResultString( "WRITE" );
-		AddResultString( "WR(", id_str , ")" );
-		AddResultString( "WR(", id_str, ") R:", reg_start);
-		AddResultString( "WR(", id_str, ") R:", reg_start, " LEN:", reg_count);
+		char short_command_str[5];
+		char long_command_str[12];
+			if (packet_type == DynamixelAnalyzer::WRITE)
+		{
+			AddResultString("W");
+			AddResultString("WRITE");
+			strcpy_s(short_command_str, sizeof(short_command_str), "WR(");
+			strcpy_s(long_command_str, sizeof(long_command_str), "WRITE(");
+		}
+		else
+		{
+			AddResultString("RW");
+			AddResultString("REG_WRITE");
+			strcpy_s(short_command_str, sizeof(short_command_str), "RW(");
+			strcpy_s(long_command_str, sizeof(long_command_str), "REG WRITE(");
+		}
+
+		AddResultString( short_command_str, id_str , ")" );
+		AddResultString( short_command_str, id_str, ") REG:", reg_start);
+		AddResultString( short_command_str, id_str, ") REG:", reg_start, " LEN:", reg_count);
 		// Try to build string showing bytes
-		if (count_data_bytes )
+		if (count_data_bytes > 0)
 		{
 			char w_str[8];
 			U64 shift_data = frame.mData1 >> (3 * 8);
@@ -144,10 +106,10 @@ void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& cha
 			for (U8 i = 0; i < count_data_bytes; i++)
 			{
 				if (i == 2)
-					AddResultString("WR(", id_str, ") R:", reg_start, remaining_data);
+					AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
 				if (i == 5)
 				{
-					AddResultString("WR(", id_str, ") R:", reg_start, remaining_data);
+					AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
 					shift_data = frame.mData2;
 				}
 				else
@@ -158,44 +120,99 @@ void DynamixelAnalyzerResults::GenerateBubbleText( U64 frame_index, Channel& cha
 					strcat_s(remaining_data, sizeof(remaining_data), ", ");
 				strcat_s(remaining_data, sizeof(remaining_data), w_str);
 			}
-			AddResultString("WR(", id_str, ") R:", reg_start, remaining_data);
-			AddResultString("WRITE(", id_str, ") R:", reg_start, remaining_data);
+			AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
+			AddResultString(long_command_str, id_str, ") REG:", reg_start, remaining_data);
 		}
 		else
-			AddResultString("WRITE(", id_str, ") R:", reg_start, " LEN:", reg_count);
+			AddResultString(long_command_str, id_str, ") REG:", reg_start, " LEN:", reg_count);
 
+		Package_Handled = true;
 	}
-	else if ( packet_type == DynamixelAnalyzer::REG_WRITE )
-	{
-		AddResultString( "RW" );
-		AddResultString( "REG_WRITE" );
-		AddResultString( "REG_WRITE ID(", id_str , ")" );
-		AddResultString( "REG_WRITE ID(", id_str , ") LEN(", packet_length, ")" );
-		AddResultString( "REG_WRITE ID(", id_str , ") LEN(", packet_length, ") CHKSUM: ", packet_checksum );
-	}
-	else if ( packet_type == DynamixelAnalyzer::ACTION )
+	else if ( (packet_type == DynamixelAnalyzer::ACTION ) && (Packet_length == 2) )
 	{
 		AddResultString( "A" );
 		AddResultString( "ACTION" );
 		AddResultString( "ACTION ID(", id_str , ")" );		
+		Package_Handled = true;
 	}
-	else if ( packet_type == DynamixelAnalyzer::RESET )
+	else if ( (packet_type == DynamixelAnalyzer::RESET ) && (Packet_length == 2) )
 	{
 		AddResultString( "RS" );
 		AddResultString( "RESET" );
 		AddResultString( "RESET ID(", id_str , ")" );
-		AddResultString( "RESET ID(", id_str , ") LEN(", packet_length, ")" );
+		AddResultString( "RESET ID(", id_str , ") LEN(", Packet_length_string, ")" );
+		Package_Handled = true;
 	}
 	else if ( packet_type == DynamixelAnalyzer::SYNC_WRITE )
 	{
 		AddResultString( "S" );
 		AddResultString( "SYNC_WRITE" );
+		Package_Handled = true;
 	}
-	else
+
+	// If the package was not handled, and packet type 0 then probably normal response, else maybe respone with error status
+	if (!Package_Handled)
 	{
-		AddResultString( "?" );
-		AddResultString( "unknown" );
-		AddResultString( "unknown packet type" );
+		char command_str[40];
+		char reg_count[8];
+		U8 count_data_bytes = Packet_length - 2;
+		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 8);
+
+		if (packet_type == DynamixelAnalyzer::NONE)
+		{
+			AddResultString("RP");
+			AddResultString("REPLY");
+			AddResultString("RP(", id_str, ")");
+			sprintf_s(command_str, sizeof(command_str), "RP(%s) LEN: %s", id_str, reg_count);
+		}
+		else
+		{
+			char status_str[8];
+			AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, 8);
+			AddResultString("SR");
+			AddResultString("STATUS");
+			AddResultString("SR:", status_str, "(", id_str, ")");
+			sprintf_s(command_str, sizeof(command_str), "SR:%s(%s) LEN: %s", status_str, id_str, reg_count);
+		}
+
+		AddResultString(command_str);
+
+		// Try to build string showing bytes
+		if (count_data_bytes)
+		{
+			char w_str[8];
+			char params_str[100];
+			U64 shift_data = frame.mData1 >> (3 * 8);
+			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);
+			sprintf_s(params_str, sizeof(params_str), " D: %s", w_str);
+			AddResultString(command_str, params_str);
+
+			if (count_data_bytes > 1)
+			{
+				// for more bytes lets try concatenating strings... 
+				// we can reuse some of the above strings, as params_str has our first two parameters. 
+				char remaining_data[100] = { 0 };
+				if (count_data_bytes > 13)
+					count_data_bytes = 13;	// Max bytes we can store
+				for (U8 i = 1; i < count_data_bytes; i++)
+				{
+					if (i == 5)
+					{
+						AddResultString(command_str, params_str, remaining_data);  // Add partial so depends on how large space
+						shift_data = frame.mData2;
+					}
+					else
+						shift_data >>= 8;
+					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
+					strcat_s(remaining_data, sizeof(remaining_data), ", ");
+					strcat_s(remaining_data, sizeof(remaining_data), w_str);
+				}
+				AddResultString(command_str, params_str, remaining_data);  // Add full one. 
+
+				//AddResultString("REPLY(", id_str, params_str, remaining_data);  // Add full one. 
+			}
+		}
+
 	}
 }
 
