@@ -28,7 +28,8 @@ public:
 	  REG_WRITE,
 	  ACTION,
 	  RESET,
-	  SYNC_WRITE=0x83
+	  SYNC_WRITE=0x83,
+      SYNC_WRITE_SERVO_DATA=0xff		// Special case for where we break up sync write into multiple frames. 
 	};
 
 	enum DECODE_STEP

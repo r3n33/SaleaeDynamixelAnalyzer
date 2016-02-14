@@ -5,6 +5,25 @@
 #include <iostream>
 #include <fstream>
 
+//=============================================================================
+// Define Global/Static data
+//=============================================================================
+static const char * s_ax_register_names[] = {
+	"MODEL", "MODEL_H", "VER","ID","BAUD","DELAY","CWL","CWL_H",
+	"CCWL","CCWL_H","DATA2","LTEMP","LVOLTD","LVOLTU","MTORQUE", "MTORQUE_H",
+	"RLEVEL","ALED","ASHUT","OMODE","DCAL","DCAL_H","UCAL","UCAL_H",
+	/** RAM AREA **/
+	"TENABLE","LED","CWMAR","CCWMAR","CWSLOPE","CCWSLOPE","GOAL","GOAL_H",
+	"GSPEED","GSPEED_H","TLIMIT","TLIMIT_H","PPOS","PPOS_H","PSPEED","PSPEED_H",
+	"PLOAD","PLOAD_H","PVOLT","PTEMP","RINST","PTIME","MOVING","LOCK",
+	"PUNCH","PUNCH_H"
+};
+
+
+//=============================================================================
+// class DynamixelAnalyzerResults 
+//=============================================================================
+
 DynamixelAnalyzerResults::DynamixelAnalyzerResults( DynamixelAnalyzer* analyzer, DynamixelAnalyzerSettings* settings )
 :	AnalyzerResults(),
 	mSettings( settings ),
@@ -21,14 +40,15 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	ClearResultStrings();
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
+	char remaining_data[120];
 
 	// Note: the mData1 and mData2 are encoded with as much of the data as we can fit.
 	// frame.mType has our = packet type
 	// mData1 bytes low to high ID, Checksum, length, data0-data4
 	// mData2  data5-12
 
-	char id_str[128];
-	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 128);
+	char id_str[8];
+	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 8);
 	char packet_checksum[8];
 	U8 checksum = ~((frame.mData1 >> (1 * 8)) & 0xff) & 0xff;
 	AnalyzerHelpers::GetNumberString(checksum, display_base, 8, packet_checksum, 8);
@@ -49,17 +69,25 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	}
 	else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
 	{
-		char reg_start[8];
-		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
+		char reg_start_str[8];
+		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
+		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
 		char reg_count[8];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, 8);
 
 		AddResultString("R");
 		AddResultString("READ");
 		AddResultString("RD(", id_str, ")");
-		AddResultString("RD(", id_str, ") REG:", reg_start);
-		AddResultString("RD(", id_str, ") REG:", reg_start, " LEN:", reg_count);
-		AddResultString("READ(", id_str, ") REG:", reg_start, " LEN:", reg_count);
+		AddResultString("RD(", id_str, ") REG:", reg_start_str);
+		AddResultString("RD(", id_str, ") REG:", reg_start_str, " LEN:", reg_count);
+		AddResultString("READ(", id_str, ") REG:", reg_start_str, " LEN:", reg_count);
+		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
+		{
+			sprintf_s(remaining_data, sizeof(remaining_data), ") REG: %s(%s) LEN: %s", reg_start_str, 
+				s_ax_register_names[reg_start], reg_count);
+			AddResultString("RD(", id_str, remaining_data);
+
+		}
 		//		AddResultString( "READ(", id_str , ") REG:", reg_start, " LEN:", reg_count, " CHKSUM: ", packet_checksum );
 		Package_Handled = true;
 	}
@@ -67,50 +95,52 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 	{
 		// Assume packet must have at least two data bytes: starting register and at least one byte.
-		char reg_start[8];
 		char reg_count[8];
+		char reg_start_str[8];
+		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
 		U8 count_data_bytes = Packet_length - 3;
-		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
+
+		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
 		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 8);
 
-		char short_command_str[5];
-		char long_command_str[12];
+		char short_command_str[50];
+		char long_command_str[30];
 			if (packet_type == DynamixelAnalyzer::WRITE)
 		{
 			AddResultString("W");
 			AddResultString("WRITE");
-			strcpy_s(short_command_str, sizeof(short_command_str), "WR(");
-			strcpy_s(long_command_str, sizeof(long_command_str), "WRITE(");
+			AddResultString("WR(", id_str, ")");
+			sprintf_s(short_command_str, sizeof(short_command_str), "WR(%s) REG:%s", id_str, reg_start_str);
+			sprintf_s(long_command_str, sizeof(long_command_str), "WRITE(%s) REG:%s", id_str, reg_start_str);
 		}
 		else
 		{
 			AddResultString("RW");
 			AddResultString("REG_WRITE");
-			strcpy_s(short_command_str, sizeof(short_command_str), "RW(");
-			strcpy_s(long_command_str, sizeof(long_command_str), "REG WRITE(");
+			AddResultString("RW(", id_str, ")");
+			sprintf_s(short_command_str, sizeof(short_command_str), "RW(%s) REG:%s", id_str, reg_start_str);
+			sprintf_s(long_command_str, sizeof(long_command_str), "REG WRITE(%s) REG:%s", id_str, reg_start_str);
 		}
 
-		AddResultString( short_command_str, id_str , ")" );
-		AddResultString( short_command_str, id_str, ") REG:", reg_start);
-		AddResultString( short_command_str, id_str, ") REG:", reg_start, " LEN:", reg_count);
+		AddResultString( short_command_str );
+		AddResultString( short_command_str, " LEN:", reg_count);
 		// Try to build string showing bytes
 		if (count_data_bytes > 0)
 		{
 			char w_str[8];
 			U64 shift_data = frame.mData1 >> (3 * 8);
 			// for more bytes lets try concatenating strings... 
-			char remaining_data[120];
-			sprintf_s(remaining_data, sizeof(remaining_data), ") LEN: %s D: ", reg_count);
+			sprintf_s(remaining_data, sizeof(remaining_data), " LEN: %s D: ", reg_count);
 
 			if (count_data_bytes > 13)
 				count_data_bytes = 13;	// Max bytes we can store
 			for (U8 i = 0; i < count_data_bytes; i++)
 			{
 				if (i == 2)
-					AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
+					AddResultString(short_command_str, remaining_data);
 				if (i == 5)
 				{
-					AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
+					AddResultString(short_command_str, remaining_data);
 					shift_data = frame.mData2;
 				}
 				else
@@ -121,11 +151,18 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 					strcat_s(remaining_data, sizeof(remaining_data), ", ");
 				strcat_s(remaining_data, sizeof(remaining_data), w_str);
 			}
-			AddResultString(short_command_str, id_str, ") REG:", reg_start, remaining_data);
-			AddResultString(long_command_str, id_str, ") REG:", reg_start, remaining_data);
+			AddResultString(short_command_str, remaining_data);
+			AddResultString(long_command_str,  remaining_data);
+			
+			if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
+			{
+				AddResultString(short_command_str, "(", s_ax_register_names[reg_start], ")",remaining_data);
+				AddResultString(long_command_str, "(", s_ax_register_names[reg_start], ")", remaining_data);
+			}
+
 		}
 		else
-			AddResultString(long_command_str, id_str, ") REG:", reg_start, " LEN:", reg_count);
+			AddResultString(long_command_str, id_str, ") REG:", reg_start_str, " LEN:", reg_count);
 
 		Package_Handled = true;
 	}
@@ -146,21 +183,59 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	}
 	else if (( packet_type == DynamixelAnalyzer::SYNC_WRITE ) && (Packet_length >= 4))
 	{
-		char reg_start[8];
-		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
+		char cmd_header_str[50];
+		char reg_start_str[8];
+		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
+		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
 		char reg_count[8];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, 8);
 
 		AddResultString("SW");
 		AddResultString("SYNC_WRITE");
-		AddResultString("SW(", id_str, ")");
-		AddResultString("SW(", id_str, ") REG:", reg_start);
-		AddResultString("SW(", id_str, ") REG:", reg_start, " LEN:", reg_count);
-		char sync_write_string[50];
-		sprintf_s(sync_write_string, sizeof(sync_write_string), ") REG:%s Len:%s", reg_start, reg_count);
-		AddResultString("SYNC_WRITE(", id_str, sync_write_string);
-		AddResultString("SYNC_WRITE(", id_str, sync_write_string, " CS:", packet_checksum);
+		// if ID == 0xfe no need to say it... 
+		if ((frame.mData1 & 0xff) == 0xfe)
+			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "SW");
+		else
+		{
+			AddResultString("SW(", id_str, ")");
+			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "SW(%s)", id_str);
+		}
+		AddResultString(cmd_header_str,  " REG:", reg_start_str);
+		AddResultString(cmd_header_str, " REG:", reg_start_str, " LEN:", reg_count);
 
+		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
+		{
+			sprintf_s(remaining_data, sizeof(remaining_data), " REG: %s(%s) LEN: %s", reg_start_str,
+				s_ax_register_names[reg_start], reg_count);
+			AddResultString(cmd_header_str, remaining_data);
+
+		}
+
+		Package_Handled = true;
+	}
+	else if (packet_type == DynamixelAnalyzer::SYNC_WRITE_SERVO_DATA)
+	{
+		AddResultString("D");	
+		AddResultString(id_str);	// Show Servo number.
+		char w_str[8];
+
+		U64 shift_data = frame.mData2;
+
+		// for more bytes lets try concatenating strings... 
+		strcpy_s (remaining_data, sizeof(remaining_data), ":");
+		U8 count_data_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
+		for (U8 i = 0; i < count_data_bytes; i++)
+		{
+			if (i == 2)
+				AddResultString(id_str,  remaining_data);
+			shift_data >>= 8;
+
+			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	
+			if (i != 0)
+				strcat_s(remaining_data, sizeof(remaining_data), ", ");
+			strcat_s(remaining_data, sizeof(remaining_data), w_str);
+		}
+		AddResultString(id_str, remaining_data);
 		Package_Handled = true;
 	}
 
@@ -205,7 +280,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 			{
 				// for more bytes lets try concatenating strings... 
 				// we can reuse some of the above strings, as params_str has our first two parameters. 
-				char remaining_data[100] = { 0 };
+				remaining_data[0] =  0;
 				if (count_data_bytes > 13)
 					count_data_bytes = 13;	// Max bytes we can store
 				for (U8 i = 1; i < count_data_bytes; i++)

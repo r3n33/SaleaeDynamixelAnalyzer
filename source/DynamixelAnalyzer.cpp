@@ -41,6 +41,7 @@ void DynamixelAnalyzer::WorkerThread()
 	U32 samples_to_first_center_of_first_current_byte_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
 
 	U64 starting_sample;
+	U64 data_samples_starting[256];		// Hold starting positions for all possible data byte positions. 
 
 	for( ; ; )
 	{
@@ -53,7 +54,12 @@ void DynamixelAnalyzer::WorkerThread()
 		if ( DecodeIndex == DE_HEADER1 )
 		{
 			starting_sample = mSerial->GetSampleNumber();
+		} 
+		else if (DecodeIndex == DE_DATA)
+		{
+			data_samples_starting[mCount] = mSerial->GetSampleNumber();
 		}
+
 		mSerial->Advance( samples_to_first_center_of_first_current_byte_bit );
 
 		for( U32 i=0; i<8; i++ )
@@ -152,6 +158,9 @@ void DynamixelAnalyzer::WorkerThread()
 					frame.mFlags = DISPLAY_AS_ERROR_FLAG;
 				}
 
+				//
+				// Lets build our Frame. Right now all are done same way, except lets try to special case SYNC_WRITE, as we won't likely fit all 
+				// of the data into one frame... So break out each servos part as their own frame 
 				frame.mType = mInstruction;		// Save the packet type in mType
 				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)) | (mData[0] << (3 * 8)); // encode id and length and checksum + 5 data bytes
 
@@ -165,10 +174,53 @@ void DynamixelAnalyzer::WorkerThread()
 				frame.mData2 |= (mTemp << (4 * 8));
 
 				frame.mStartingSampleInclusive = starting_sample;
-				frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
 
-				mResults->AddFrame( frame );
-				ReportProgress( frame.mEndingSampleInclusive );
+				// See if we are doing a SYNC_WRITE...
+				if ((mInstruction == SYNC_WRITE) && (mLength > 4))
+				{
+					// Add Header Frame. 
+					// Data byte: <start reg><reg count> 
+					frame.mEndingSampleInclusive = data_samples_starting[1] + samples_per_bit * 10;
+
+					mResults->AddFrame(frame);
+					ReportProgress(frame.mEndingSampleInclusive);
+
+					// Now lets figure out how many frames to add plus bytes per frame
+					U8 count_of_servos = (mLength - 4) / (mData[1] + 1);	// Should validate this is correct but will try this for now...
+					frame.mType = SYNC_WRITE_SERVO_DATA;
+					U8 data_index = 2;
+					for (U8 iServo = 0; iServo < count_of_servos; iServo++)
+					{
+						frame.mStartingSampleInclusive = data_samples_starting[data_index];
+						// Now to encode the data bytes. 
+						// mData1 - Maybe Servo ID, Starting index, count bytes
+						// mData2 - Up to 8 bytes per servo... Could pack more... but
+						// BUGBUG Should verify that count of bytes <= 8
+						frame.mData1 = mData[data_index] | (mData[0] << 8) | (mData[1] << 16);
+						frame.mData2 = 0;
+						for (U8 i = data_index + mData[1]; i > mData[1]; i--)
+							frame.mData2 = (frame.mData2 << 8) | mData[i];
+
+						data_index += mData[1] + 1;	// advance to start of next one...
+
+						// Now try to report this one. 
+						if ((iServo+1) < count_of_servos)
+							frame.mEndingSampleInclusive = data_samples_starting[data_index-1] + samples_per_bit * 10;
+						else
+							frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
+
+						mResults->AddFrame(frame);
+						ReportProgress(frame.mEndingSampleInclusive);
+					}
+
+				}
+				else
+				{
+					// Normal frames...
+					frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
+					mResults->AddFrame(frame);
+					ReportProgress(frame.mEndingSampleInclusive);
+				}
 			break;
 		}
 		mChecksum += current_byte;
