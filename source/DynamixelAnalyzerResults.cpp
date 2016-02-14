@@ -30,7 +30,8 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	char id_str[128];
 	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 128);
 	char packet_checksum[8];
-	AnalyzerHelpers::GetNumberString((frame.mData1 >> (1 * 8)) & 0xff, display_base, 8, packet_checksum, 8);
+	U8 checksum = ~((frame.mData1 >> (1 * 8)) & 0xff) & 0xff;
+	AnalyzerHelpers::GetNumberString(checksum, display_base, 8, packet_checksum, 8);
 
 	char Packet_length_string[8];
 	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
@@ -143,10 +144,23 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		AddResultString( "RESET ID(", id_str , ") LEN(", Packet_length_string, ")" );
 		Package_Handled = true;
 	}
-	else if ( packet_type == DynamixelAnalyzer::SYNC_WRITE )
+	else if (( packet_type == DynamixelAnalyzer::SYNC_WRITE ) && (Packet_length >= 4))
 	{
-		AddResultString( "S" );
-		AddResultString( "SYNC_WRITE" );
+		char reg_start[8];
+		AnalyzerHelpers::GetNumberString((frame.mData1 >> (3 * 8)) & 0xff, display_base, 8, reg_start, 8);
+		char reg_count[8];
+		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, 8);
+
+		AddResultString("SW");
+		AddResultString("SYNC_WRITE");
+		AddResultString("SW(", id_str, ")");
+		AddResultString("SW(", id_str, ") REG:", reg_start);
+		AddResultString("SW(", id_str, ") REG:", reg_start, " LEN:", reg_count);
+		char sync_write_string[50];
+		sprintf_s(sync_write_string, sizeof(sync_write_string), ") REG:%s Len:%s", reg_start, reg_count);
+		AddResultString("SYNC_WRITE(", id_str, sync_write_string);
+		AddResultString("SYNC_WRITE(", id_str, sync_write_string, " CS:", packet_checksum);
+
 		Package_Handled = true;
 	}
 
