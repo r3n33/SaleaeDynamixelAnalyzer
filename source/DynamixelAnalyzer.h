@@ -5,6 +5,7 @@
 #include "DynamixelAnalyzerResults.h"
 #include "DynamixelSimulationDataGenerator.h"
 
+#define PACKET_TIMEOUT_MS 3		// If a packet takes this long bail 
 class DynamixelAnalyzerSettings;
 class ANALYZER_EXPORT DynamixelAnalyzer : public Analyzer
 {

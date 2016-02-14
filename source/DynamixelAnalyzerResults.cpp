@@ -194,20 +194,21 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		AddResultString("SYNC_WRITE");
 		// if ID == 0xfe no need to say it... 
 		if ((frame.mData1 & 0xff) == 0xfe)
-			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "SW");
+			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "");
 		else
 		{
 			AddResultString("SW(", id_str, ")");
-			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "SW(%s)", id_str);
+			sprintf_s(cmd_header_str, sizeof(cmd_header_str), "(%s)", id_str);
 		}
-		AddResultString(cmd_header_str,  " REG:", reg_start_str);
-		AddResultString(cmd_header_str, " REG:", reg_start_str, " LEN:", reg_count);
+		AddResultString("SW",cmd_header_str,  " REG:", reg_start_str);
+		AddResultString("SW",cmd_header_str, " REG:", reg_start_str, " LEN:", reg_count);
 
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
 			sprintf_s(remaining_data, sizeof(remaining_data), " REG: %s(%s) LEN: %s", reg_start_str,
 				s_ax_register_names[reg_start], reg_count);
-			AddResultString(cmd_header_str, remaining_data);
+			AddResultString("SW",cmd_header_str, remaining_data);
+			AddResultString("SYNC_WRITE", cmd_header_str, remaining_data);
 
 		}
 

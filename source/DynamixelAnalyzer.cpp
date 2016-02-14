@@ -54,10 +54,20 @@ void DynamixelAnalyzer::WorkerThread()
 		if ( DecodeIndex == DE_HEADER1 )
 		{
 			starting_sample = mSerial->GetSampleNumber();
-		} 
-		else if (DecodeIndex == DE_DATA)
+		}
+		else
 		{
-			data_samples_starting[mCount] = mSerial->GetSampleNumber();
+			// Try checking for packets that are taking too long. 
+			U32 packet_time_ms = (mSerial->GetSampleNumber() - starting_sample) / (mSampleRateHz / 1000);
+			if (packet_time_ms > PACKET_TIMEOUT_MS)
+			{
+				DecodeIndex = DE_HEADER1;
+				starting_sample = mSerial->GetSampleNumber();
+			}
+			else if (DecodeIndex == DE_DATA)
+			{
+				data_samples_starting[mCount] = mSerial->GetSampleNumber();
+			}
 		}
 
 		mSerial->Advance( samples_to_first_center_of_first_current_byte_bit );
@@ -191,7 +201,8 @@ void DynamixelAnalyzer::WorkerThread()
 					U8 data_index = 2;
 					for (U8 iServo = 0; iServo < count_of_servos; iServo++)
 					{
-						frame.mStartingSampleInclusive = data_samples_starting[data_index];
+						//frame.mStartingSampleInclusive = data_samples_starting[data_index];
+						frame.mStartingSampleInclusive = frame.mEndingSampleInclusive + 1;
 						// Now to encode the data bytes. 
 						// mData1 - Maybe Servo ID, Starting index, count bytes
 						// mData2 - Up to 8 bytes per servo... Could pack more... but
