@@ -7,7 +7,7 @@ DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 	mBitRate( 1000000 )
 {
 	mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
-	mInputChannelInterface->SetTitleAndTooltip( "Serial", "Standard Dynamixel Protocol" );
+	mInputChannelInterface->SetTitleAndTooltip( "Dynamixel", "Standard Dynamixel Protocol" );
 	mInputChannelInterface->SetChannel( mInputChannel );
 
 	mBitRateInterface.reset( new AnalyzerSettingInterfaceInteger() );
@@ -19,12 +19,11 @@ DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 	AddInterface( mInputChannelInterface.get() );
 	AddInterface( mBitRateInterface.get() );
 
-	AddExportOption( 0, "Export as text/csv file" );
+	AddExportOption( 0, "Export as text file" );
 	AddExportExtension( 0, "text", "txt" );
-	AddExportExtension( 0, "csv", "csv" );
 
 	ClearChannels();
-	AddChannel( mInputChannel, "Serial", false );
+	AddChannel( mInputChannel, "Dynamixel", false );
 }
 
 DynamixelAnalyzerSettings::~DynamixelAnalyzerSettings()

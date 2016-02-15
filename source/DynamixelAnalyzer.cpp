@@ -2,16 +2,8 @@
 #include "DynamixelAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
 
-unsigned char reverse(unsigned char b)
-{
-   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
-   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
-   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
-   return b;
-}
-
 DynamixelAnalyzer::DynamixelAnalyzer()
-:	Analyzer(),  
+:	Analyzer2(),  
 	mSettings( new DynamixelAnalyzerSettings() ),
 	mSimulationInitilized( false ),
 	DecodeIndex( 0 )
@@ -24,12 +16,16 @@ DynamixelAnalyzer::~DynamixelAnalyzer()
 	KillThread();
 }
 
+void DynamixelAnalyzer::SetupResults()
+{
+	mResults.reset(new DynamixelAnalyzerResults(this, mSettings.get()));
+	SetAnalyzerResults(mResults.get());
+	mResults->AddChannelBubblesWillAppearOn(mSettings->mInputChannel);
+}
+
+
 void DynamixelAnalyzer::WorkerThread()
 {
-	mResults.reset( new DynamixelAnalyzerResults( this, mSettings.get() ) );
-	SetAnalyzerResults( mResults.get() );
-	mResults->AddChannelBubblesWillAppearOn( mSettings->mInputChannel );
-
 	mSampleRateHz = GetSampleRate();
 
 	mSerial = GetAnalyzerChannelData( mSettings->mInputChannel );
@@ -46,7 +42,7 @@ void DynamixelAnalyzer::WorkerThread()
 	for( ; ; )
 	{
 		U8 current_byte = 0;
-		U8 mask = 1 << 7;
+		U8 mask = 1 << 0;
 		
 		mSerial->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
 
@@ -58,7 +54,7 @@ void DynamixelAnalyzer::WorkerThread()
 		else
 		{
 			// Try checking for packets that are taking too long. 
-			U32 packet_time_ms = (mSerial->GetSampleNumber() - starting_sample) / (mSampleRateHz / 1000);
+			U64 packet_time_ms = (mSerial->GetSampleNumber() - starting_sample) / (mSampleRateHz / 1000);
 			if (packet_time_ms > PACKET_TIMEOUT_MS)
 			{
 				DecodeIndex = DE_HEADER1;
@@ -83,11 +79,8 @@ void DynamixelAnalyzer::WorkerThread()
 
 			mSerial->Advance( samples_per_bit );
 
-			mask = mask >> 1;
+			mask = mask << 1;
 		}
-
-		//TODO: Inverting bits here because I cannot yet find how to add Inverstion to Settings
-		current_byte = reverse( current_byte );
 
 		//Process new byte
 		
@@ -239,6 +232,7 @@ void DynamixelAnalyzer::WorkerThread()
 		mResults->CommitResults();
 	}
 }
+
 
 bool DynamixelAnalyzer::NeedsRerun()
 {

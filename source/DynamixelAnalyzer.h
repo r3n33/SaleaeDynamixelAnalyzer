@@ -7,11 +7,12 @@
 
 #define PACKET_TIMEOUT_MS 3		// If a packet takes this long bail 
 class DynamixelAnalyzerSettings;
-class ANALYZER_EXPORT DynamixelAnalyzer : public Analyzer
+class ANALYZER_EXPORT DynamixelAnalyzer : public Analyzer2
 {
 public:
 	DynamixelAnalyzer();
 	virtual ~DynamixelAnalyzer();
+	virtual void SetupResults();
 	virtual void WorkerThread();
 
 	virtual U32 GenerateSimulationData( U64 newest_sample_requested, U32 sample_rate, SimulationChannelDescriptor** simulation_channels );
@@ -19,7 +20,6 @@ public:
 
 	virtual const char* GetAnalyzerName() const;
 	virtual bool NeedsRerun();
-
 	enum INSTRUCTION
 	{
 	  NONE,

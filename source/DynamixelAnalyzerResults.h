@@ -20,6 +20,7 @@ public:
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
 protected: //functions
+	bool GenerateFrameText(U64 frame_index, DisplayBase display_base, char* string_ptr, U16 string_len);
 
 protected:  //vars
 	DynamixelAnalyzerSettings* mSettings;
