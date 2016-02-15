@@ -19,8 +19,8 @@ DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 	AddInterface( mInputChannelInterface.get() );
 	AddInterface( mBitRateInterface.get() );
 
-	AddExportOption( 0, "Export as text file" );
-	AddExportExtension( 0, "text", "txt" );
+	AddExportOption(0, "Export as csv file");
+	AddExportExtension(0, "csv", "csv");
 
 	ClearChannels();
 	AddChannel( mInputChannel, "Dynamixel", false );
