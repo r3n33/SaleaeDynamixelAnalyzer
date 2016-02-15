@@ -44,43 +44,52 @@ void DynamixelAnalyzer::WorkerThread()
 		U8 current_byte = 0;
 		U8 mask = 1 << 0;
 		
-		mSerial->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
 
-		//U64 starting_sample = mSerial->GetSampleNumber();
-		if ( DecodeIndex == DE_HEADER1 )
-		{
-			starting_sample = mSerial->GetSampleNumber();
-		}
-		else
-		{
-			// Try checking for packets that are taking too long. 
-			U64 packet_time_ms = (mSerial->GetSampleNumber() - starting_sample) / (mSampleRateHz / 1000);
-			if (packet_time_ms > PACKET_TIMEOUT_MS)
+		// Lets verify we have the right state for a start bit. 
+		// before we continue. and like wise don't say it is a byte unless it also has the right stop bit...
+		do {
+
+			do {
+				mSerial->AdvanceToNextEdge(); //falling edge -- beginning of the start bit
+
+			} while ((mSerial->GetBitState() == BIT_HIGH));		// start bit should be logicall low. 
+
+			//U64 starting_sample = mSerial->GetSampleNumber();
+			if (DecodeIndex == DE_HEADER1)
 			{
-				DecodeIndex = DE_HEADER1;
 				starting_sample = mSerial->GetSampleNumber();
 			}
-			else if (DecodeIndex == DE_DATA)
+			else
 			{
-				data_samples_starting[mCount] = mSerial->GetSampleNumber();
+				// Try checking for packets that are taking too long. 
+				U64 packet_time_ms = (mSerial->GetSampleNumber() - starting_sample) / (mSampleRateHz / 1000);
+				if (packet_time_ms > PACKET_TIMEOUT_MS)
+				{
+					DecodeIndex = DE_HEADER1;
+					starting_sample = mSerial->GetSampleNumber();
+				}
+				else if (DecodeIndex == DE_DATA)
+				{
+					data_samples_starting[mCount] = mSerial->GetSampleNumber();
+				}
 			}
-		}
 
-		mSerial->Advance( samples_to_first_center_of_first_current_byte_bit );
+			mSerial->Advance(samples_to_first_center_of_first_current_byte_bit);
 
-		for( U32 i=0; i<8; i++ )
-		{
-			//let's put a dot exactly where we sample this bit:
-			//NOTE: Dot, ErrorDot, Square, ErrorSquare, UpArrow, DownArrow, X, ErrorX, Start, Stop, One, Zero
-			//mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Start, mSettings->mInputChannel );
+			for (U32 i = 0; i < 8; i++)
+			{
+				//let's put a dot exactly where we sample this bit:
+				//NOTE: Dot, ErrorDot, Square, ErrorSquare, UpArrow, DownArrow, X, ErrorX, Start, Stop, One, Zero
+				//mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Start, mSettings->mInputChannel );
 
-			if( mSerial->GetBitState() == BIT_HIGH )
-				current_byte |= mask;
+				if (mSerial->GetBitState() == BIT_HIGH)
+					current_byte |= mask;
 
-			mSerial->Advance( samples_per_bit );
+				mSerial->Advance(samples_per_bit);
 
-			mask = mask << 1;
-		}
+				mask = mask << 1;
+			}
+		} while (mSerial->GetBitState() != BIT_HIGH);		// Stop bit should be logically high
 
 		//Process new byte
 		
@@ -165,16 +174,12 @@ void DynamixelAnalyzer::WorkerThread()
 				// Lets build our Frame. Right now all are done same way, except lets try to special case SYNC_WRITE, as we won't likely fit all 
 				// of the data into one frame... So break out each servos part as their own frame 
 				frame.mType = mInstruction;		// Save the packet type in mType
-				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)) | (mData[0] << (3 * 8)); // encode id and length and checksum + 5 data bytes
-
-				// BUGBUG:: did two step as << 40 appears to error out...
-				U64 mTemp =  (mData[1] << (0 * 8)) | (mData[2] << (1 * 8)) | (mData[3] << (2 * 8)) | (mData[4] << (3 * 8));
-				frame.mData1 |= (mTemp << (4 * 8));
+				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)) | (mData[0] << (3 * 8)) |  // encode id and length and checksum + 5 data bytes
+						((U64)mData[1] << (4 * 8)) | ((U64)mData[2] << (5 * 8)) | ((U64)mData[3] << (6 * 8)) | ((U64)mData[4] << (7 * 8));
 
 				// Use mData2 to store up to 8 bytes of the packet data. 
-				frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8));
-				mTemp = (mData[9] << (0 * 8)) | (mData[10] << (1 * 8)) | (mData[11] << (2 * 8)) | (mData[12] << (3 * 8));
-				frame.mData2 |= (mTemp << (4 * 8));
+				frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8)) |
+						((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
 
 				frame.mStartingSampleInclusive = starting_sample;
 
@@ -197,10 +202,10 @@ void DynamixelAnalyzer::WorkerThread()
 						//frame.mStartingSampleInclusive = data_samples_starting[data_index];
 						frame.mStartingSampleInclusive = frame.mEndingSampleInclusive + 1;
 						// Now to encode the data bytes. 
-						// mData1 - Maybe Servo ID, Starting index, count bytes
+						// mData1 - Maybe Servo ID, 0, 0, Starting index, count bytes < updated same as other packets, but 
 						// mData2 - Up to 8 bytes per servo... Could pack more... but
 						// BUGBUG Should verify that count of bytes <= 8
-						frame.mData1 = mData[data_index] | (mData[0] << 8) | (mData[1] << 16);
+						frame.mData1 = mData[data_index] | (mData[0] << (3 * 8)) | ((U64)mData[1] << (4 * 8));
 						frame.mData2 = 0;
 						for (U8 i = data_index + mData[1]; i > mData[1]; i--)
 							frame.mData2 = (frame.mData2 << 8) | mData[i];

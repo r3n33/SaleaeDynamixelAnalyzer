@@ -225,7 +225,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 		// for more bytes lets try concatenating strings... 
 		strcpy_s (remaining_data, sizeof(remaining_data), ":");
-		U8 count_data_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
+		U8 count_data_bytes = (frame.mData1 >> (4 * 8)) & 0xff;
 		for (U8 i = 0; i < count_data_bytes; i++)
 		{
 			if (i == 2)
@@ -314,26 +314,153 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 
 	U64 trigger_sample = mAnalyzer->GetTriggerSample();
 	U32 sample_rate = mAnalyzer->GetSampleRate();
+	char w_str[8];
 
 	void* f = AnalyzerHelpers::StartFile(file);
 
-	ss << "Time [s],Value" << std::endl;
+	ss << "Time [s],Type, ID, Errors, Reg start, count, data" << std::endl;
 
 	U64 num_frames = GetNumFrames();
-	for( U32 i=0; i < num_frames; i++ )
+	for( U32 frame_index=0; frame_index < num_frames; frame_index++ )
 	{
-		Frame frame = GetFrame( i );
+		Frame frame = GetFrame( frame_index );
 		
 		char time_str[128];
 		AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
 
-		char id_str[128];
-		GenerateFrameText(i, display_base, id_str, sizeof(id_str));
-		ss << time_str << "," << id_str << std::endl;
+		//-----------------------------------------------------------------------------
+		bool Package_Handled = false;
+		char remaining_data[120];
+		U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
+
+
+		// First lets try to output the common stuff, like time, type, id
+	
+
+		// Note: the mData1 and mData2 are encoded with as much of the data as we can fit.
+		// frame.mType has our = packet type
+		// mData1 bytes low to high ID, Checksum, length, data0-data4
+		// mData2  data5-12
+
+		char id_str[8];
+		char reg_start_str[8];
+		char reg_count_str[8];
+		U8 packet_type = frame.mType;
+
+		AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, w_str, 8);
+		AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 8);
+
+		// Note: only used in some packets...
+		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
+		U8 reg_count = (frame.mData1 >> (4 * 8)) & 0xff;
+		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
+		AnalyzerHelpers::GetNumberString(reg_count, display_base, 8, reg_count_str, 8);
+
+
+		ss << time_str << "," << w_str << "," << id_str;
+
+		// Now lets handle the different packet types
+		if ((Packet_length == 2) && (
+				(packet_type == DynamixelAnalyzer::ACTION) ||
+				(packet_type == DynamixelAnalyzer::RESET) ||
+				(packet_type == DynamixelAnalyzer::APING)))
+		{
+			Package_Handled = true;
+		}
+		else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
+		{
+			ss << ",," << reg_start_str << "," << reg_count_str;
+			Package_Handled = true;
+		}
+
+		else if (((packet_type == DynamixelAnalyzer::WRITE) || (packet_type == DynamixelAnalyzer::REG_WRITE)) && (Packet_length > 3))
+		{
+			U8 count_data_bytes = Packet_length - 3;
+			// output first part... Warning: Write register count is not stored but derived...
+			AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count_str, 8);
+			ss << ",," << reg_start_str << "," << reg_count_str;
+
+			// Try to build string showing bytes
+			if (count_data_bytes > 0)
+			{
+				U64 shift_data = frame.mData1 >> (3 * 8);
+				if (count_data_bytes > 13)
+					count_data_bytes = 13;	// Max bytes we can store
+				for (U8 i = 0; i < count_data_bytes; i++)
+				{
+					if (i == 5)
+						shift_data = frame.mData2;
+					else
+						shift_data >>= 8;
+					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
+					ss << "," << w_str;
+				}
+			}
+			Package_Handled = true;
+		}
+		else if ((packet_type == DynamixelAnalyzer::SYNC_WRITE) && (Packet_length >= 4))
+		{
+			ss << ",," << reg_start_str << "," << reg_count_str;
+			Package_Handled = true;
+		}
+		else if (packet_type == DynamixelAnalyzer::SYNC_WRITE_SERVO_DATA)
+		{
+			ss << ",," << reg_start_str << "," << reg_count_str;
+			U64 shift_data = frame.mData2;
+
+			// for more bytes lets try concatenating strings... 
+			U8 count_data_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
+			for (U8 i = 0; i < count_data_bytes; i++)
+			{
+				shift_data >>= 8;
+
+				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);
+				ss << "," << w_str;
+			}
+			Package_Handled = true;
+		}
+
+		// If the package was not handled, and packet type 0 then probably normal response, else maybe respone with error status
+		if (!Package_Handled)
+		{
+			U8 count_data_bytes = Packet_length - 2;
+			AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count_str, 8);
+
+			if (packet_type == DynamixelAnalyzer::NONE)
+			{
+				ss << ",,," << reg_count_str;
+			}
+			else
+			{
+				char status_str[8];
+				AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, 8);
+				ss << "," << status_str << ",," << reg_count_str;
+			}
+
+			// Try to build string showing bytes
+			if (count_data_bytes)
+			{
+				U64 shift_data = frame.mData1 >> (2 * 8);
+
+				if (count_data_bytes > 13)
+					count_data_bytes = 13;	// Max bytes we can store
+				for (U8 i = 0; i < count_data_bytes; i++)
+				{
+					if (i == 5)
+						shift_data = frame.mData2;
+					else
+						shift_data >>= 8;
+					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
+					ss << "," << w_str;
+				}
+			}
+		}
+
+		ss <<  std::endl;
 
 		AnalyzerHelpers::AppendToFile((U8*)ss.str().c_str(), ss.str().length(), f);
 		ss.str(std::string());
-		if( UpdateExportProgressAndCheckForCancel( i, num_frames ) == true )
+		if( UpdateExportProgressAndCheckForCancel( frame_index, num_frames ) == true )
 		{
 			AnalyzerHelpers::EndFile(f);
 			return;
@@ -469,7 +596,7 @@ bool DynamixelAnalyzerResults::GenerateFrameText(U64 frame_index, DisplayBase di
 		U64 shift_data = frame.mData2;
 
 		// for more bytes lets try concatenating strings... 
-		U8 count_data_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
+		U8 count_data_bytes = (frame.mData1 >> (4 * 8)) & 0xff;
 		for (U8 i = 0; i < count_data_bytes; i++)
 		{
 			shift_data >>= 8;
