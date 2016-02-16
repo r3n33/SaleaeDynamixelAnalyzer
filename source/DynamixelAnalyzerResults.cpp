@@ -19,6 +19,9 @@ static const char * s_ax_register_names[] = {
 	"PUNCH","PUNCH_H"
 };
 
+static const char * s_instruction_names[] = {
+	"REPLY", "PING", "READ", "WRITE", "REG_WRITE", "ACTION", "RESET",
+	"SYNC_WRITE", "SW_DATA", "REPLY_STAT" };
 
 //=============================================================================
 // class DynamixelAnalyzerResults 
@@ -314,15 +317,22 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 
 	std::ofstream file_stream(file, std::ios::out);
 
-	file_stream << "Time [s],Type, ID, Errors, Reg start, count, data" << std::endl;
+	file_stream << "Time [s],Instruction, Instructions(S), ID, Errors, Reg start, Reg(s), count, data" << std::endl;
 
 	U64 num_frames = GetNumFrames();
 	for( U32 frame_index=0; frame_index < num_frames; frame_index++ )
 	{
+		char id_str[8];
+		char reg_start_str[8];
+		const char *reg_start_name_str_ptr;
+		char reg_count_str[8];
+		char time_str[16];
+		char status_str[16];
+		const char *instruct_str_ptr;
+
 		Frame frame = GetFrame( frame_index );
 		
-		char time_str[128];
-		AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, 128 );
+		AnalyzerHelpers::GetTimeString( frame.mStartingSampleInclusive, trigger_sample, sample_rate, time_str, sizeof(time_str) );
 
 		//-----------------------------------------------------------------------------
 		bool Package_Handled = false;
@@ -337,9 +347,6 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 		// mData1 bytes low to high ID, Checksum, length, data0-data4
 		// mData2  data5-12
 
-		char id_str[8];
-		char reg_start_str[8];
-		char reg_count_str[8];
 		U8 packet_type = frame.mType;
 
 		AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, w_str, 8);
@@ -349,10 +356,35 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
 		U8 reg_count = (frame.mData1 >> (4 * 8)) & 0xff;
 		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
+
+		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
+			reg_start_name_str_ptr = s_ax_register_names[reg_start];
+		else
+			reg_start_name_str_ptr = "";
+
+
 		AnalyzerHelpers::GetNumberString(reg_count, display_base, 8, reg_count_str, 8);
 
+		// Setup initial 
+		if (frame.mFlags & DISPLAY_AS_ERROR_FLAG)
+			strncpy(status_str, "CHECKSUM", sizeof(status_str));
+		else
+			status_str[0] = 0;
 
-		file_stream << time_str << "," << w_str << "," << id_str;
+		// Figure out our Instruction string
+		if (packet_type < (sizeof(s_instruction_names) / sizeof(s_instruction_names[0])))
+			instruct_str_ptr = s_instruction_names[packet_type];
+		else if (packet_type == DynamixelAnalyzer::SYNC_WRITE)
+			instruct_str_ptr = s_instruction_names[7];	// BUGBUG:: Should not hard code
+		else if (packet_type == DynamixelAnalyzer::SYNC_WRITE_SERVO_DATA)
+		{
+			instruct_str_ptr = s_instruction_names[8];	// BUGBUG:: Should not hard code
+			w_str[0] = 0;	// lets not output our coded 0xff
+		}
+		else
+			instruct_str_ptr = "";
+
+		file_stream << time_str << "," << w_str << "," << instruct_str_ptr << "," << id_str;
 
 		// Now lets handle the different packet types
 		if ((Packet_length == 2) && (
@@ -360,11 +392,13 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 				(packet_type == DynamixelAnalyzer::RESET) ||
 				(packet_type == DynamixelAnalyzer::APING)))
 		{
+			if (strlen(status_str))
+				file_stream << "," << status_str;
 			Package_Handled = true;
 		}
 		else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
 		{
-			file_stream << ",," << reg_start_str << "," << reg_count_str;
+			file_stream << "," << status_str << "," << reg_start_str << "," << reg_start_name_str_ptr << "," << reg_count_str;
 			Package_Handled = true;
 		}
 
@@ -373,7 +407,7 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 			U8 count_data_bytes = Packet_length - 3;
 			// output first part... Warning: Write register count is not stored but derived...
 			AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count_str, 8);
-			file_stream << ",," << reg_start_str << "," << reg_count_str;
+			file_stream << "," << status_str << "," << reg_start_str << "," << reg_start_name_str_ptr << "," << reg_count_str;
 
 			// Try to build string showing bytes
 			if (count_data_bytes > 0)
@@ -395,16 +429,16 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 		}
 		else if ((packet_type == DynamixelAnalyzer::SYNC_WRITE) && (Packet_length >= 4))
 		{
-			file_stream << ",," << reg_start_str << "," << reg_count_str;
+			file_stream << "," << status_str << "," << reg_start_str << "," << reg_start_name_str_ptr << "," << reg_count_str;
 			Package_Handled = true;
 		}
 		else if (packet_type == DynamixelAnalyzer::SYNC_WRITE_SERVO_DATA)
 		{
-			file_stream << ",," << reg_start_str << "," << reg_count_str;
+			file_stream << "," << status_str << "," << reg_start_str << "," << reg_start_name_str_ptr << "," << reg_count_str;
 			U64 shift_data = frame.mData2;
 
 			// for more bytes lets try concatenating strings... 
-			U8 count_data_bytes = (frame.mData1 >> (2 * 8)) & 0xff;
+			U8 count_data_bytes = (frame.mData1 >> (4 * 8)) & 0xff;
 			for (U8 i = 0; i < count_data_bytes; i++)
 			{
 				shift_data >>= 8;
@@ -423,13 +457,12 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 
 			if (packet_type == DynamixelAnalyzer::NONE)
 			{
-				file_stream << ",,," << reg_count_str;
+				file_stream << "," << status_str << ",,," << reg_count_str;
 			}
 			else
 			{
-				char status_str[8];
-				AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, 8);
-				file_stream << "," << status_str << ",," << reg_count_str;
+				AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, sizeof(status_str));
+				file_stream << "," << status_str << ",,," << reg_count_str;
 			}
 
 			// Try to build string showing bytes
