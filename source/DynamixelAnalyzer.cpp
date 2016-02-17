@@ -70,7 +70,9 @@ void DynamixelAnalyzer::WorkerThread()
 				}
 				else if (DecodeIndex == DE_DATA)
 				{
-					data_samples_starting[mCount] = mSerial->GetSampleNumber();
+					// Test should not be needed, but to be safe
+					if (mCount < (sizeof(data_samples_starting)/sizeof(data_samples_starting[0])))
+						data_samples_starting[mCount] = mSerial->GetSampleNumber();
 				}
 			}
 
