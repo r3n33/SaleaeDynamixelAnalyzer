@@ -180,13 +180,16 @@ void DynamixelAnalyzer::WorkerThread()
 						((U64)mData[1] << (4 * 8)) | ((U64)mData[2] << (5 * 8)) | ((U64)mData[3] << (6 * 8)) | ((U64)mData[4] << (7 * 8));
 
 				// Use mData2 to store up to 8 bytes of the packet data. 
-				frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8)) |
-						((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
+				if (frame.mFlags == 0)
+					frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8)) |
+					((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
+				else
+					frame.mData2 = current_byte;	// in error frame have mData2 with the checksum byte. 
 
 				frame.mStartingSampleInclusive = starting_sample;
 
-				// See if we are doing a SYNC_WRITE...
-				if ((mInstruction == SYNC_WRITE) && (mLength > 4))
+				// See if we are doing a SYNC_WRITE...  But not if error!
+				if ((mInstruction == SYNC_WRITE) && (mLength > 4) && (frame.mFlags == 0))
 				{
 					// Add Header Frame. 
 					// Data byte: <start reg><reg count> 
@@ -197,31 +200,34 @@ void DynamixelAnalyzer::WorkerThread()
 
 					// Now lets figure out how many frames to add plus bytes per frame
 					U8 count_of_servos = (mLength - 4) / (mData[1] + 1);	// Should validate this is correct but will try this for now...
-					frame.mType = SYNC_WRITE_SERVO_DATA;
-					U8 data_index = 2;
-					for (U8 iServo = 0; iServo < count_of_servos; iServo++)
+					if (mData[1] && (mData[1] <=8) && count_of_servos && ((count_of_servos *(mData[1]+1)+4) == mLength))
 					{
-						//frame.mStartingSampleInclusive = data_samples_starting[data_index];
-						frame.mStartingSampleInclusive = frame.mEndingSampleInclusive + 1;
-						// Now to encode the data bytes. 
-						// mData1 - Maybe Servo ID, 0, 0, Starting index, count bytes < updated same as other packets, but 
-						// mData2 - Up to 8 bytes per servo... Could pack more... but
-						// BUGBUG Should verify that count of bytes <= 8
-						frame.mData1 = mData[data_index] | (mData[0] << (3 * 8)) | ((U64)mData[1] << (4 * 8));
-						frame.mData2 = 0;
-						for (U8 i = data_index + mData[1]; i > mData[1]; i--)
-							frame.mData2 = (frame.mData2 << 8) | mData[i];
+						frame.mType = SYNC_WRITE_SERVO_DATA;
+						U8 data_index = 2;
+						for (U8 iServo = 0; iServo < count_of_servos; iServo++)
+						{
+							//frame.mStartingSampleInclusive = data_samples_starting[data_index];
+							frame.mStartingSampleInclusive = frame.mEndingSampleInclusive + 1;
+							// Now to encode the data bytes. 
+							// mData1 - Maybe Servo ID, 0, 0, Starting index, count bytes < updated same as other packets, but 
+							// mData2 - Up to 8 bytes per servo... Could pack more... but
+							// BUGBUG Should verify that count of bytes <= 8
+							frame.mData1 = mData[data_index] | (mData[0] << (3 * 8)) | ((U64)mData[1] << (4 * 8));
+							frame.mData2 = 0;
+							for (U8 i = mData[1]; i > 0; i--)
+								frame.mData2 = (frame.mData2 << 8) | mData[data_index + i];
 
-						data_index += mData[1] + 1;	// advance to start of next one...
+							data_index += mData[1] + 1;	// advance to start of next one...
 
-						// Now try to report this one. 
-						if ((iServo+1) < count_of_servos)
-							frame.mEndingSampleInclusive = data_samples_starting[data_index-1] + samples_per_bit * 10;
-						else
-							frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
+							// Now try to report this one. 
+							if ((iServo + 1) < count_of_servos)
+								frame.mEndingSampleInclusive = data_samples_starting[data_index - 1] + samples_per_bit * 10;
+							else
+								frame.mEndingSampleInclusive = mSerial->GetSampleNumber();
 
-						mResults->AddFrame(frame);
-						ReportProgress(frame.mEndingSampleInclusive);
+							mResults->AddFrame(frame);
+							ReportProgress(frame.mEndingSampleInclusive);
+						}
 					}
 
 				}

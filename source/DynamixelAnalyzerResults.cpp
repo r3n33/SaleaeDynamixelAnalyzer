@@ -61,7 +61,6 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	AnalyzerHelpers::GetNumberString(Packet_length, display_base, 8, Packet_length_string, 8);
 
 	U8 packet_type = frame.mType;
-	//char checksum = ( frame.mData2 >> ( 1 * 8 ) ) & 0xff;
 
 	// Several packet types use the register start and Register length, so move that out here
 	char reg_start_str[8];
@@ -70,7 +69,19 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	char reg_count_str[8];
 	AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count_str, 8);
 
-	if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
+	if (frame.mFlags & DISPLAY_AS_ERROR_FLAG)
+	{
+		U8 checksum = ~( frame.mData1 >> ( 1 * 8 ) ) & 0xff;
+		char checksum_str[10];
+		char calc_checksum_str[10];
+		AnalyzerHelpers::GetNumberString(checksum, display_base, 8, calc_checksum_str, 10);
+		AnalyzerHelpers::GetNumberString(frame.mData2 & 0xff, display_base, 8, checksum_str, 10);
+		AddResultString("*");
+		AddResultString("Checksum");
+		AddResultString("CHK: ", checksum_str, "!=", calc_checksum_str);
+		Package_Handled = true;
+	}
+	else if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
 	{
 		AddResultString("P");
 		AddResultString("PING");
@@ -226,12 +237,12 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		{
 			if (i == 2)
 				AddResultString(id_str,  remaining_data);
-			shift_data >>= 8;
 
 			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	
 			if (i != 0)
 				strncat(remaining_data, ", ", sizeof(remaining_data));
 			strncat(remaining_data, w_str, sizeof(remaining_data));
+			shift_data >>= 8;
 		}
 		AddResultString(id_str, remaining_data);
 		Package_Handled = true;
@@ -491,11 +502,9 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
 {
 	ClearTabularText();
-
-	char frame_text_str[128];
+	char frame_text_str[64];
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
-	char remaining_data[120];
 	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
 
 
@@ -504,13 +513,27 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 	// mData1 bytes low to high ID, Checksum, length, data0-data4
 	// mData2  data5-12
 
-	char id_str[8];
-	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 8);
+	char id_str[16];
+	AnalyzerHelpers::GetNumberString(frame.mData1 & 0xff, display_base, 8, id_str, 16);
 
 	U8 packet_type = frame.mType;
 	//char checksum = ( frame.mData2 >> ( 1 * 8 ) ) & 0xff;
 
-	if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
+	if (frame.mFlags & DISPLAY_AS_ERROR_FLAG)
+	{
+		U8 checksum = ~(frame.mData1 >> (1 * 8)) & 0xff;
+		char checksum_str[10];
+		char calc_checksum_str[10];
+		AnalyzerHelpers::GetNumberString(checksum, display_base, 8, calc_checksum_str, 10);
+		AnalyzerHelpers::GetNumberString(frame.mData2 & 0xff, display_base, 8, checksum_str, 10);
+		AddResultString("*");
+		AddResultString("Checksum");
+
+		snprintf(frame_text_str, sizeof(frame_text_str), "CHK %s !=%s", checksum_str, calc_checksum_str);
+		AddResultString("CHK: ", checksum_str, "!=", calc_checksum_str);
+		Package_Handled = true;
+	}
+	else if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
 	{
 		snprintf(frame_text_str, sizeof(frame_text_str), "PG %s", id_str);
 		Package_Handled = true;
@@ -616,14 +639,16 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 
 		// for more bytes lets try concatenating strings... 
 		U8 count_data_bytes = (frame.mData1 >> (4 * 8)) & 0xff;
+		if (count_data_bytes > 7)
+			count_data_bytes = 7;
 		for (U8 i = 0; i < count_data_bytes; i++)
 		{
-			shift_data >>= 8;
 
 			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);
 			if (i != 0)
 				strncat(frame_text_str, ", ", sizeof(frame_text_str));
 			strncat(frame_text_str, w_str, sizeof(frame_text_str));
+			shift_data >>= 8;
 		}
 		Package_Handled = true;
 	}
@@ -631,9 +656,9 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 	// If the package was not handled, and packet type 0 then probably normal response, else maybe respone with error status
 	if (!Package_Handled)
 	{
-		char reg_count[8];
+		char reg_count[16];
 		U8 count_data_bytes = Packet_length - 2;
-		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 8);
+		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count, 16);
 
 		if (packet_type == DynamixelAnalyzer::NONE)
 		{
@@ -641,8 +666,8 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		}
 		else
 		{
-			char status_str[8];
-			AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, 8);
+			char status_str[16];
+			AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, 16);
 			snprintf(frame_text_str, sizeof(frame_text_str), "SR %s %s ", id_str, status_str);
 		}
 
@@ -653,21 +678,20 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 			strncat(frame_text_str, reg_count, sizeof(frame_text_str));
 			strncat(frame_text_str, "D:", sizeof(frame_text_str));
 
-			char w_str[8];
+			char w_str[16];
 			U64 shift_data = frame.mData1 >> (2 * 8);
-
 			// for more bytes lets try concatenating strings... 
 			// we can reuse some of the above strings, as params_str has our first two parameters. 
-			remaining_data[0] = 0;
-			if (count_data_bytes > 13)
-				count_data_bytes = 13;	// Max bytes we can store
+			// BUGBUG:: try limiting to 5
+			if (count_data_bytes > 5)
+				count_data_bytes = 5;	// Max bytes we can store
 			for (U8 i = 0; i < count_data_bytes; i++)
 			{
 				if (i == 5)
 					shift_data = frame.mData2;
 				else
 					shift_data >>= 8;
-				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
+				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 16);	// reuse string; 
 				if (i != 0)
 					strncat(frame_text_str, ", ", sizeof(frame_text_str));
 				strncat(frame_text_str, w_str, sizeof(frame_text_str));
