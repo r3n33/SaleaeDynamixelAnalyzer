@@ -1,6 +1,7 @@
 #include "DynamixelAnalyzer.h"
 #include "DynamixelAnalyzerSettings.h"
 #include <AnalyzerChannelData.h>
+#include <AnalyzerHelpers.h>
 
 DynamixelAnalyzer::DynamixelAnalyzer()
 :	Analyzer2(),  
@@ -16,6 +17,29 @@ DynamixelAnalyzer::~DynamixelAnalyzer()
 	KillThread();
 }
 
+void DynamixelAnalyzer::ComputeSampleOffsets()
+{
+	ClockGenerator clock_generator;
+	clock_generator.Init(mSettings->mBitRate, mSampleRateHz);
+
+	mSampleOffsets.clear();
+
+	U32 num_bits = 8;
+
+	mSampleOffsets.push_back(clock_generator.AdvanceByHalfPeriod(1.5));  //point to the center of the 1st bit (past the start bit)
+	num_bits--;  //we just added the first bit.
+
+	for (U32 i = 0; i<num_bits; i++)
+	{
+		mSampleOffsets.push_back(clock_generator.AdvanceByHalfPeriod());
+	}
+
+	//to check for framing errors, we also want to check
+	//1/2 bit after the beginning of the stop bit
+	mStartOfStopBitOffset = clock_generator.AdvanceByHalfPeriod(1.0);  //i.e. moving from the center of the last data bit (where we left off) to 1/2 period into the stop bit
+}
+
+
 void DynamixelAnalyzer::SetupResults()
 {
 	mResults.reset(new DynamixelAnalyzerResults(this, mSettings.get()));
@@ -27,6 +51,7 @@ void DynamixelAnalyzer::SetupResults()
 void DynamixelAnalyzer::WorkerThread()
 {
 	mSampleRateHz = GetSampleRate();
+	ComputeSampleOffsets();
 
 	mSerial = GetAnalyzerChannelData( mSettings->mInputChannel );
 
@@ -76,21 +101,21 @@ void DynamixelAnalyzer::WorkerThread()
 				}
 			}
 
-			mSerial->Advance(samples_to_first_center_of_first_current_byte_bit);
+//			mSerial->Advance(samples_to_first_center_of_first_current_byte_bit);
 
 			for (U32 i = 0; i < 8; i++)
 			{
 				//let's put a dot exactly where we sample this bit:
 				//NOTE: Dot, ErrorDot, Square, ErrorSquare, UpArrow, DownArrow, X, ErrorX, Start, Stop, One, Zero
 				//mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::Start, mSettings->mInputChannel );
-
+				mSerial->Advance(mSampleOffsets[i]);
 				if (mSerial->GetBitState() == BIT_HIGH)
 					current_byte |= mask;
 
-				mSerial->Advance(samples_per_bit);
-
+//				mSerial->Advance(samples_per_bit);
 				mask = mask << 1;
 			}
+			mSerial->Advance(mStartOfStopBitOffset);
 		} while (mSerial->GetBitState() != BIT_HIGH);		// Stop bit should be logically high
 
 		//Process new byte
@@ -200,7 +225,7 @@ void DynamixelAnalyzer::WorkerThread()
 
 					// Now lets figure out how many frames to add plus bytes per frame
 					U8 count_of_servos = (mLength - 4) / (mData[1] + 1);	// Should validate this is correct but will try this for now...
-					if (mData[1] && (mData[1] <=8) && count_of_servos && ((count_of_servos *(mData[1]+1)+4) == mLength))
+					if (mData[1] && (mData[1] <=8) && count_of_servos /*&& ((count_of_servos *(mData[1]+1)+4) == mLength)*/)
 					{
 						frame.mType = SYNC_WRITE_SERVO_DATA;
 						U8 data_index = 2;

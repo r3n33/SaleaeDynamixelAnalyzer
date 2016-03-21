@@ -38,6 +38,32 @@ DynamixelAnalyzerResults::~DynamixelAnalyzerResults()
 {
 }
 
+#if defined (WIN32)
+void inline DynamixelAnalyzerResults::Strcat_s(char * strDestination, size_t numberOfElements, const char * strSource)
+{
+	strcat_s(strDestination, numberOfElements, strSource);
+
+}
+#else
+void inline DynamixelAnalyzerResults::Strcat_s(char * strDestination, size_t numberOfElements, const char * strSource)
+{
+
+	// Quick and dirty implementation. 
+	numberOfElements--;	// leave room for trailing null. 
+	while (*strDestination && numberOfElements)
+	{
+		strDestination++;
+		numberOfElements--;
+	}
+	while (numberOfElements && *strSource)
+	{
+		*strDestination++ = *strSource++;
+		numberOfElements-- ;
+	}
+	*strDestination = 0;	// make sure last character is null
+}
+#endif
+
 void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base)
 {
 	ClearResultStrings();
@@ -161,8 +187,8 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
 				if (i != 0)
-					strncat(remaining_data, ", ", sizeof(remaining_data));
-				strncat(remaining_data, w_str, sizeof(remaining_data));
+					Strcat_s(remaining_data, sizeof(remaining_data), ", ");
+				Strcat_s(remaining_data, sizeof(remaining_data), w_str);
 			}
 			AddResultString(short_command_str, remaining_data);
 			AddResultString(long_command_str,  remaining_data);
@@ -240,8 +266,8 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	
 			if (i != 0)
-				strncat(remaining_data, ", ", sizeof(remaining_data));
-			strncat(remaining_data, w_str, sizeof(remaining_data));
+				Strcat_s(remaining_data, sizeof(remaining_data), ", ");
+			Strcat_s(remaining_data, sizeof(remaining_data), w_str);
 			shift_data >>= 8;
 		}
 		AddResultString(id_str, remaining_data);
@@ -301,8 +327,8 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 					else
 						shift_data >>= 8;
 					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
-					strncat(remaining_data, ", ", sizeof(remaining_data));
-					strncat(remaining_data, w_str, sizeof(remaining_data));
+					Strcat_s(remaining_data, sizeof(remaining_data), ", ");
+					Strcat_s(remaining_data, sizeof(remaining_data), w_str);
 				}
 				AddResultString(command_str, params_str, remaining_data);  // Add full one. 
 
@@ -502,7 +528,8 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
 {
 	ClearTabularText();
-	char frame_text_str[64];
+#if 1
+	char frame_text_str[128];
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
 	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
@@ -540,17 +567,17 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 	}
 	else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
 	{
-		char reg_start_str[8];
+		char reg_start_str[16];
 		U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
-		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 8);
+		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, 16);
 		char reg_count[8];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, 8);
 
 		snprintf(frame_text_str, sizeof(frame_text_str), "RD %s: R:%s L:%s", id_str, reg_start_str, reg_count);
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			strncat(frame_text_str, " - ", sizeof(frame_text_str));
-			strncat(frame_text_str, s_ax_register_names[reg_start], sizeof(frame_text_str));
+			Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
+			Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
 		}
 		Package_Handled = true;
 	}
@@ -591,15 +618,15 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);	// reuse string; 
 
 				if (i != 0)
-					strncat(frame_text_str, ", ", sizeof(frame_text_str));
-				strncat(frame_text_str, w_str, sizeof(frame_text_str));
+					Strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
+				Strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
 				if (strlen(frame_text_str) >= (sizeof(frame_text_str) - 1))
 					break;
 			}
 			if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 			{
-				strncat(frame_text_str, " - ", sizeof(frame_text_str));
-				strncat(frame_text_str, s_ax_register_names[reg_start], sizeof(frame_text_str));
+				Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
+				Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
 			}
 		}
 		Package_Handled = true;
@@ -625,8 +652,8 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		snprintf(frame_text_str, sizeof(frame_text_str), "SW %s: R:%s L:%s", id_str, reg_start_str, reg_count);
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			strncat(frame_text_str, " - ", sizeof(frame_text_str));
-			strncat(frame_text_str, s_ax_register_names[reg_start], sizeof(frame_text_str));
+			Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
+			Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
 		}
 		Package_Handled = true;
 	}
@@ -646,8 +673,8 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 
 			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 8);
 			if (i != 0)
-				strncat(frame_text_str, ", ", sizeof(frame_text_str));
-			strncat(frame_text_str, w_str, sizeof(frame_text_str));
+				Strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
+			Strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
 			shift_data >>= 8;
 		}
 		Package_Handled = true;
@@ -674,9 +701,9 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		// Try to build string showing bytes
 		if (count_data_bytes)
 		{
-			strncat(frame_text_str, "L:", sizeof(frame_text_str));
-			strncat(frame_text_str, reg_count, sizeof(frame_text_str));
-			strncat(frame_text_str, "D:", sizeof(frame_text_str));
+			Strcat_s(frame_text_str, sizeof(frame_text_str), "L:");
+			Strcat_s(frame_text_str, sizeof(frame_text_str), reg_count);
+			Strcat_s(frame_text_str, sizeof(frame_text_str), "D:");
 
 			char w_str[16];
 			U64 shift_data = frame.mData1 >> (2 * 8);
@@ -693,12 +720,13 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 					shift_data >>= 8;
 				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, 16);	// reuse string; 
 				if (i != 0)
-					strncat(frame_text_str, ", ", sizeof(frame_text_str));
-				strncat(frame_text_str, w_str, sizeof(frame_text_str));
+					Strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
+				Strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
 			}
 		}
 	}
 	AddTabularText(frame_text_str);
+#endif
 }
 
 void DynamixelAnalyzerResults::GeneratePacketTabularText( U64 packet_id, DisplayBase display_base )
@@ -712,3 +740,5 @@ void DynamixelAnalyzerResults::GenerateTransactionTabularText( U64 transaction_i
 	ClearResultStrings();
 	AddResultString( "not supported" );
 }
+
+

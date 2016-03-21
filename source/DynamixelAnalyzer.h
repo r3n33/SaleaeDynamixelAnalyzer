@@ -44,6 +44,10 @@ public:
 	  DE_CHECKSUM
 	};
 
+protected: //functions
+	void ComputeSampleOffsets();
+
+
 protected: //vars
 	std::auto_ptr< DynamixelAnalyzerSettings > mSettings;
 	std::auto_ptr< DynamixelAnalyzerResults > mResults;
@@ -54,6 +58,7 @@ protected: //vars
 
 	//Serial analysis vars:
 	U32 mSampleRateHz;
+	std::vector<U32> mSampleOffsets;
 	U32 mStartOfStopBitOffset;
 	U32 mEndOfStopBitOffset;
 
