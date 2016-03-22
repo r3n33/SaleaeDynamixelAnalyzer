@@ -44,6 +44,13 @@ public:
 	  DE_CHECKSUM
 	};
 
+	enum SERVO_TYPE
+	{
+		AX_SERVOS,
+		MX_SERVOS
+
+	};
+
 protected: //functions
 	void ComputeSampleOffsets();
 
