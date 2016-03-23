@@ -4,6 +4,7 @@
 #include "DynamixelAnalyzer.h"
 #include "DynamixelAnalyzerSettings.h"
 #include <fstream>
+#include <sstream>
 
 //=============================================================================
 // Define Global/Static data
@@ -45,38 +46,12 @@ DynamixelAnalyzerResults::~DynamixelAnalyzerResults()
 {
 }
 
-#if defined (WIN32)
-void inline DynamixelAnalyzerResults::Strcat_s(char * strDestination, size_t numberOfElements, const char * strSource)
-{
-	strcat_s(strDestination, numberOfElements, strSource);
-
-}
-#else
-void inline DynamixelAnalyzerResults::Strcat_s(char * strDestination, size_t numberOfElements, const char * strSource)
-{
-
-	// Quick and dirty implementation. 
-	numberOfElements--;	// leave room for trailing null. 
-	while (*strDestination && numberOfElements)
-	{
-		strDestination++;
-		numberOfElements--;
-	}
-	while (numberOfElements && *strSource)
-	{
-		*strDestination++ = *strSource++;
-		numberOfElements-- ;
-	}
-	*strDestination = 0;	// make sure last character is null
-}
-#endif
-
 void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& channel, DisplayBase display_base)
 {
 	ClearResultStrings();
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
-	char remaining_data[200];
+	std::stringstream ss;
 
 	// Note: the mData1 and mData2 are encoded with as much of the data as we can fit.
 	// frame.mType has our = packet type
@@ -97,7 +72,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 	// Several packet types use the register start and Register length, so move that out here
 	char reg_start_str[20];
-	U8 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
+	U16 reg_start = (frame.mData1 >> (3 * 8)) & 0xff;
 	AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, sizeof(reg_start_str));
 	char reg_count_str[20];
 	AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count_str, sizeof(reg_count_str));
@@ -131,9 +106,9 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		AddResultString("READ(", id_str, ") REG:", reg_start_str, " LEN:", reg_count_str);
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			snprintf(remaining_data, sizeof(remaining_data), ") REG: %s(%s) LEN: %s", reg_start_str, 
-				s_ax_register_names[reg_start], reg_count_str);
-			AddResultString("RD(", id_str, remaining_data);
+			ss << "RD(" << id_str << ") REG: " << reg_start_str << "(" << s_ax_register_names[reg_start]
+				<< ") LEN: " << reg_count_str;
+			AddResultString(ss.str().c_str());
 
 		}
 		//		AddResultString( "READ(", id_str , ") REG:", reg_start, " LEN:", reg_count_str, " CHKSUM: ", packet_checksum );
@@ -149,44 +124,48 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		// Need to redo as length is calculated. 
 		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count_str, sizeof(reg_count_str));
 
-		char short_command_str[50];
-		char long_command_str[30];
+		char short_command_str[5];
+		char long_command_str[10];
 			if (packet_type == DynamixelAnalyzer::WRITE)
 		{
 			AddResultString("W");
 			AddResultString("WRITE");
 			AddResultString("WR(", id_str, ")");
-			snprintf(short_command_str, sizeof(short_command_str), "WR(%s) REG:%s", id_str, reg_start_str);
-			snprintf(long_command_str, sizeof(long_command_str), "WRITE(%s) REG:%s", id_str, reg_start_str);
+			strcpy(short_command_str, "WR");
+			strcpy(long_command_str, "WRITE");
 		}
 		else
 		{
 			AddResultString("RW");
 			AddResultString("REG_WRITE");
 			AddResultString("RW(", id_str, ")");
-			snprintf(short_command_str, sizeof(short_command_str), "RW(%s) REG:%s", id_str, reg_start_str);
-			snprintf(long_command_str, sizeof(long_command_str), "REG WRITE(%s) REG:%s", id_str, reg_start_str);
+			strcpy(short_command_str, "RW");
+			strcpy(long_command_str, "REG WRITE");
 		}
 
-		AddResultString( short_command_str );
-		AddResultString( short_command_str, " LEN:", reg_count_str);
+		ss << "(" << id_str << ") REG:" << reg_start_str;
+
+		AddResultString( short_command_str, ss.str().c_str());
+		ss << " LEN: " << reg_count_str;
+		AddResultString(short_command_str, ss.str().c_str());
+
 		// Try to build string showing bytes
 		if (count_data_bytes > 0)
 		{
+			ss << "D: ";
 			char w_str[20];
 			U64 shift_data = frame.mData1 >> (3 * 8);
 			// for more bytes lets try concatenating strings... 
-			snprintf(remaining_data, sizeof(remaining_data), " LEN: %s D: ", reg_count_str);
 
 			if (count_data_bytes > 13)
 				count_data_bytes = 13;	// Max bytes we can store
 			for (U8 index_data_byte = 0; index_data_byte < count_data_bytes; )
 			{
 				if (index_data_byte == 2)
-					AddResultString(short_command_str, remaining_data);
+					AddResultString(short_command_str, ss.str().c_str());
 
 				if (index_data_byte != 0)
-					strcat_s(remaining_data, sizeof(remaining_data), ", ");
+					ss << ", ";
 
 				// now see if register is associated with a pair of registers. 
 				if (fShowWords && ((reg_start+index_data_byte) < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
@@ -204,27 +183,29 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 					}
 					AnalyzerHelpers::GetNumberString(wval, display_base, 16, w_str, sizeof(w_str));	// reuse string; 
 					index_data_byte += 2;  // update index to next byte to process
-					strcat_s(remaining_data, sizeof(remaining_data), "$");
+					ss << "$";
 				}
 				else
 				{
 					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
 					index_data_byte++;
 					if (index_data_byte == 4)
-						AddResultString(short_command_str, remaining_data);
+					{
+						shift_data = frame.mData2;		// setup for next one
+						AddResultString(short_command_str, ss.str().c_str());
+					}
 					else
-						shift_data >>= 8;
-				}
+						shift_data >>= 8;				}
 
-				strcat_s(remaining_data, sizeof(remaining_data), w_str);
+				ss << w_str;
 			}
-			AddResultString(short_command_str, remaining_data);
-			AddResultString(long_command_str,  remaining_data);
+			AddResultString(short_command_str, ss.str().c_str());
+			AddResultString(long_command_str, ss.str().c_str());
 			
 			if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 			{
-				AddResultString(short_command_str, "(", s_ax_register_names[reg_start], ")",remaining_data);
-				AddResultString(long_command_str, "(", s_ax_register_names[reg_start], ")", remaining_data);
+				AddResultString(short_command_str, "(", s_ax_register_names[reg_start], ")", ss.str().c_str());
+				AddResultString(long_command_str, "(", s_ax_register_names[reg_start], ")", ss.str().c_str());
 			}
 
 		}
@@ -250,27 +231,30 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	}
 	else if (( packet_type == DynamixelAnalyzer::SYNC_WRITE ) && (Packet_length >= 4))
 	{
-		char cmd_header_str[50];
+//		char cmd_header_str[50];
 
 		AddResultString("SW");
 		AddResultString("SYNC_WRITE");
 		// if ID == 0xfe no need to say it... 
 		if ((frame.mData1 & 0xff) == 0xfe)
-			snprintf(cmd_header_str, sizeof(cmd_header_str), "");
+			ss << " ";
 		else
 		{
-			AddResultString("SW(", id_str, ")");
-			snprintf(cmd_header_str, sizeof(cmd_header_str), "(%s)", id_str);
+			ss << "(" << id_str << ") ";
+			AddResultString(ss.str().c_str());
 		}
-		AddResultString("SW",cmd_header_str,  " REG:", reg_start_str);
-		AddResultString("SW",cmd_header_str, " REG:", reg_start_str, " LEN:", reg_count_str);
+
+		ss << "REG:" << reg_start_str;
+		AddResultString("SW", ss.str().c_str());
+		ss << " LEN:" << reg_count_str;
+		AddResultString("SW", ss.str().c_str());
 
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			snprintf(remaining_data, sizeof(remaining_data), " REG: %s(%s) LEN: %s", reg_start_str,
-				s_ax_register_names[reg_start], reg_count_str);
-			AddResultString("SW",cmd_header_str, remaining_data);
-			AddResultString("SYNC_WRITE", cmd_header_str, remaining_data);
+			ss << " REG: " << reg_start_str << "(" << s_ax_register_names[reg_start]
+				<< ") LEN: " << reg_count_str;
+			AddResultString("SW", ss.str().c_str());
+			AddResultString("SYNC_WRITE", ss.str().c_str());
 
 		}
 
@@ -285,42 +269,39 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		U64 shift_data = frame.mData2;
 
 		// for more bytes lets try concatenating strings... 
-		strcpy (remaining_data, ":");
+		ss << ":";
 		U8 count_data_bytes = (frame.mData1 >> (4 * 8)) & 0xff;
-		uint8_t reg = reg_start;
 		for (U8 index_data_byte = 0; index_data_byte < count_data_bytes;)
 		{
 			if (index_data_byte == 2)
-				AddResultString(id_str,  remaining_data);
+				AddResultString(id_str, ss.str().c_str());
 			if (index_data_byte != 0)
-				Strcat_s(remaining_data, sizeof(remaining_data), ", ");
+				ss << ", ";
 
-			if (fShowWords && (reg < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
-				&& s_is_register_pair_start[reg])
+			if (fShowWords && ((reg_start+index_data_byte) < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
+				&& s_is_register_pair_start[reg_start + index_data_byte])
 			{
 				AnalyzerHelpers::GetNumberString(shift_data & 0xffff, display_base, 16, w_str, sizeof(w_str));	// reuse string; 
 				shift_data >>= 16;
-				reg += 2;
 				index_data_byte += 2;
-				Strcat_s(remaining_data, sizeof(remaining_data), "$");
+				ss << "$";
 			}
 			else
 			{
 				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
 				shift_data >>= 8;
-				reg++;
 				index_data_byte++;
 			}
-			Strcat_s(remaining_data, sizeof(remaining_data), w_str);
+			ss << w_str;
 		}
-		AddResultString(id_str, remaining_data);
+		AddResultString(id_str, ss.str().c_str());
 		Package_Handled = true;
 	}
 
 	// If the package was not handled, and packet type 0 then probably normal response, else maybe respone with error status
 	if (!Package_Handled)
 	{
-		char command_str[40];
+//		char command_str[40];
 		U8 count_data_bytes = Packet_length - 2;
 		AnalyzerHelpers::GetNumberString(count_data_bytes, display_base, 8, reg_count_str, sizeof(reg_count_str));
 
@@ -329,7 +310,8 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 			AddResultString("RP");
 			AddResultString("REPLY");
 			AddResultString("RP(", id_str, ")");
-			snprintf(command_str, sizeof(command_str), "RP(%s) LEN: %s", id_str, reg_count_str);
+			ss << "RP(" << id_str << ") LEN: " << reg_count_str;
+			reg_start = (frame.mData2 >> (7 * 8)) & 0xff;
 		}
 		else
 		{
@@ -338,45 +320,62 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 			AddResultString("SR");
 			AddResultString("STATUS");
 			AddResultString("SR:", status_str, "(", id_str, ")");
-			snprintf(command_str, sizeof(command_str), "SR:%s(%s) LEN: %s", status_str, id_str, reg_count_str);
+			ss << "SR:" << status_str << "(" << id_str << ") LEN: " << reg_count_str;
+			reg_start = 0xff;		// make sure 
 		}
 
-		AddResultString(command_str);
+		AddResultString(ss.str().c_str());
 
 		// Try to build string showing bytes
 		if (count_data_bytes)
 		{
 			char w_str[20];
-			char params_str[100];
 			U64 shift_data = frame.mData1 >> (3 * 8);
-			AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));
-			snprintf(params_str, sizeof(params_str), " D: %s", w_str);
-			AddResultString(command_str, params_str);
+			ss << " D: ";
 
-			if (count_data_bytes > 1)
+			if (count_data_bytes > 12)
+				count_data_bytes = 12;	// Max bytes we can store
+			for (U8 index_data_byte = 0; index_data_byte < count_data_bytes; )
 			{
-				// for more bytes lets try concatenating strings... 
-				// we can reuse some of the above strings, as params_str has our first two parameters. 
-				remaining_data[0] =  0;
-				if (count_data_bytes > 13)
-					count_data_bytes = 13;	// Max bytes we can store
-				for (U8 i = 1; i < count_data_bytes; i++)
+				if (index_data_byte != 0)
+					ss << ", ";
+
+				// now see if register is associated with a pair of registers. 
+				if (fShowWords && ((reg_start + index_data_byte) < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
+					&& s_is_register_pair_start[reg_start + index_data_byte])
 				{
-					if (i == 5)
+					// need to special case index 4 as it splits the two mdata members
+					U16 wval;
+					if (index_data_byte == 4) {
+						wval = ((frame.mData2 & 0xff) << 8) | shift_data & 0xff;
+						shift_data = frame.mData2 >> 8;		// setup for next one
+					}
+					else {
+						wval = shift_data & 0xffff;
+						shift_data >>= 16;
+					}
+					AnalyzerHelpers::GetNumberString(wval, display_base, 16, w_str, sizeof(w_str));	// reuse string; 
+					index_data_byte += 2;  // update index to next byte to process
+					ss << "$";
+				}
+				else
+				{
+					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
+					index_data_byte++;
+					if (index_data_byte == 3)
 					{
-						AddResultString(command_str, params_str, remaining_data);  // Add partial so depends on how large space
 						shift_data = frame.mData2;
 					}
 					else
 						shift_data >>= 8;
-					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
-					Strcat_s(remaining_data, sizeof(remaining_data), ", ");
-					Strcat_s(remaining_data, sizeof(remaining_data), w_str);
 				}
-				AddResultString(command_str, params_str, remaining_data);  // Add full one. 
 
-				//AddResultString("REPLY(", id_str, params_str, remaining_data);  // Add full one. 
+				ss << w_str;
+				AddResultString(ss.str().c_str());  // Add up to this point...  
 			}
+
+
+			//AddResultString("REPLY(", id_str, params_str, remaining_data);  // Add full one. 
 		}
 
 	}
@@ -571,7 +570,7 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, DisplayBase display_base )
 {
 	ClearTabularText();
-	char frame_text_str[128];
+	std::stringstream ss;
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
 	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
@@ -599,13 +598,13 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		AddResultString("*");
 		AddResultString("Checksum");
 
-		snprintf(frame_text_str, sizeof(frame_text_str), "CHK %s !=%s", checksum_str, calc_checksum_str);
-		AddResultString("CHK: ", checksum_str, "!=", calc_checksum_str);
+		ss << "CHK " << checksum_str << " != " << calc_checksum_str;
+		AddResultString(ss.str().c_str());
 		Package_Handled = true;
 	}
 	else if ((packet_type == DynamixelAnalyzer::APING) && (Packet_length == 2))
 	{
-		snprintf(frame_text_str, sizeof(frame_text_str), "PG %s", id_str);
+		ss << "PG " << id_str;
 		Package_Handled = true;
 	}
 	else if ((packet_type == DynamixelAnalyzer::READ) && (Packet_length == 4))
@@ -616,11 +615,11 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		char reg_count[20];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, sizeof(reg_count));
 
-		snprintf(frame_text_str, sizeof(frame_text_str), "RD %s: R:%s L:%s", id_str, reg_start_str, reg_count);
+		ss << "RD " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
-			Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
+			ss <<" - ";
+			ss << s_ax_register_names[reg_start];
 		}
 		Package_Handled = true;
 	}
@@ -638,11 +637,11 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 
 		if (packet_type == DynamixelAnalyzer::WRITE)
 		{
-			snprintf(frame_text_str, sizeof(frame_text_str), "WR %s: R:%s L:%s ", id_str, reg_start_str, reg_count);
+			ss << "WR " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
 		}
 		else
 		{
-			snprintf(frame_text_str, sizeof(frame_text_str), "RW %s: R:%s L:%s ", id_str, reg_start_str, reg_count);
+			ss << "RW " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
 		}
 
 		// Try to build string showing bytes
@@ -655,7 +654,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 			for (U8 index_data_byte = 0; index_data_byte < count_data_bytes; )
 			{
 				if (index_data_byte != 0)
-					strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
+					ss << ", ";
 
 				// now see if register is associated with a pair of registers. 
 				if (fShowWords && ((reg_start + index_data_byte) < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
@@ -673,39 +672,36 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 					}
 					AnalyzerHelpers::GetNumberString(wval, display_base, 16, w_str, sizeof(w_str));	// reuse string; 
 					index_data_byte += 2;  // update index to next byte to process
-					strcat_s(frame_text_str, sizeof(frame_text_str), "$");
+					ss << "$";
 				}
 				else
 				{
 					AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
 					index_data_byte++;
 					if (index_data_byte == 4)
-						AddResultString(frame_text_str, frame_text_str);
+						shift_data = frame.mData2;
 					else
 						shift_data >>= 8;
 				}
 
-				strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
-				if (strlen(frame_text_str) >= (sizeof(frame_text_str) - 1))
-					break;
+				ss << w_str;
 			}
 
 			if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 			{
-				Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
-				Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
+				ss << " - " << s_ax_register_names[reg_start];
 			}
 		}
 		Package_Handled = true;
 	}
 	else if ((packet_type == DynamixelAnalyzer::ACTION) && (Packet_length == 2))
 	{
-		snprintf(frame_text_str, sizeof(frame_text_str), "AC %s", id_str);
+		ss << "AC " << id_str;
 		Package_Handled = true;
 	}
 	else if ((packet_type == DynamixelAnalyzer::RESET) && (Packet_length == 2))
 	{
-		snprintf(frame_text_str, sizeof(frame_text_str), "RS %s", id_str);
+		ss << "RS " << id_str;
 		Package_Handled = true;
 	}
 	else if ((packet_type == DynamixelAnalyzer::SYNC_WRITE) && (Packet_length >= 4))
@@ -716,17 +712,16 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		char reg_count[20];
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, sizeof(reg_count));
 
-		snprintf(frame_text_str, sizeof(frame_text_str), "SW %s: R:%s L:%s", id_str, reg_start_str, reg_count);
+		ss <<"SW " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
 		if (reg_start < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 		{
-			Strcat_s(frame_text_str, sizeof(frame_text_str), " - ");
-			Strcat_s(frame_text_str, sizeof(frame_text_str), s_ax_register_names[reg_start]);
+			ss << " - " << s_ax_register_names[reg_start];
 		}
 		Package_Handled = true;
 	}
 	else if (packet_type == DynamixelAnalyzer::SYNC_WRITE_SERVO_DATA)
 	{
-		snprintf(frame_text_str, sizeof(frame_text_str), "SD %s ", id_str);
+		ss << "SD " << id_str;
 		char w_str[20];
 
 		U64 shift_data = frame.mData2;
@@ -739,7 +734,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		for (U8 index_data_byte = 0; index_data_byte < count_data_bytes;)
 		{
 			if (index_data_byte != 0)
-				Strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
+				ss << ", ";
 
 			if (fShowWords && ((reg_start + index_data_byte) < sizeof(s_is_register_pair_start)) && (index_data_byte < (count_data_bytes - 1))
 				&& s_is_register_pair_start[(reg_start + index_data_byte)])
@@ -747,7 +742,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 				AnalyzerHelpers::GetNumberString(shift_data & 0xffff, display_base, 16, w_str, sizeof(w_str));	// reuse string; 
 				shift_data >>= 16;
 				index_data_byte += 2;
-				Strcat_s(frame_text_str, sizeof(frame_text_str), "$");
+				ss << "$";
 			}
 			else
 			{
@@ -755,7 +750,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 				shift_data >>= 8;
 				index_data_byte++;
 			}
-			Strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
+			ss << w_str;
 		}
 
 		Package_Handled = true;
@@ -770,21 +765,19 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 
 		if (packet_type == DynamixelAnalyzer::NONE)
 		{
-			snprintf(frame_text_str, sizeof(frame_text_str), "RP %s ", id_str);
+			ss << "RP " << id_str;
 		}
 		else
 		{
 			char status_str[16];
 			AnalyzerHelpers::GetNumberString(packet_type, display_base, 8, status_str, sizeof(status_str));
-			snprintf(frame_text_str, sizeof(frame_text_str), "SR %s %s ", id_str, status_str);
+			ss << "SR " << id_str << " " << status_str;
 		}
 
 		// Try to build string showing bytes
 		if (count_data_bytes)
 		{
-			Strcat_s(frame_text_str, sizeof(frame_text_str), "L:");
-			Strcat_s(frame_text_str, sizeof(frame_text_str), reg_count);
-			Strcat_s(frame_text_str, sizeof(frame_text_str), "D:");
+			ss << "L:" << reg_count << "D:";
 
 			char w_str[16];
 			U64 shift_data = frame.mData1 >> (2 * 8);
@@ -801,12 +794,12 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 					shift_data >>= 8;
 				AnalyzerHelpers::GetNumberString(shift_data & 0xff, display_base, 8, w_str, sizeof(w_str));	// reuse string; 
 				if (i != 0)
-					Strcat_s(frame_text_str, sizeof(frame_text_str), ", ");
-				Strcat_s(frame_text_str, sizeof(frame_text_str), w_str);
+					ss <<", ";
+				ss << w_str;
 			}
 		}
 	}
-	AddTabularText(frame_text_str);
+	AddTabularText(ss.str().c_str());
 }
 
 void DynamixelAnalyzerResults::GeneratePacketTabularText( U64 packet_id, DisplayBase display_base )

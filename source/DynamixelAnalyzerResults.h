@@ -20,7 +20,6 @@ public:
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
 protected: //functions
-	void Strcat_s(char *strDestination, size_t numberOfElements, const char *strSource);
 
 protected:  //vars
 	DynamixelAnalyzerSettings* mSettings;

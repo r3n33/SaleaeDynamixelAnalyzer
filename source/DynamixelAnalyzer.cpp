@@ -64,6 +64,10 @@ void DynamixelAnalyzer::WorkerThread()
 	U64 starting_sample;
 	U64 data_samples_starting[256];		// Hold starting positions for all possible data byte positions. 
 
+	U8 previous_ID = 0xff;
+	U8 previous_instruction = 0xff;
+	U8 previous_reg_start = 0xff;
+
 	for( ; ; )
 	{
 		U8 current_byte = 0;
@@ -206,8 +210,20 @@ void DynamixelAnalyzer::WorkerThread()
 
 				// Use mData2 to store up to 8 bytes of the packet data. 
 				if (frame.mFlags == 0)
+				{
+					// Try hack if Same ID as previous and Instruction before was read and this is a 0 response then 
+					// Maybe encode starting register as mData[12]
+					if (mInstruction == DynamixelAnalyzer::NONE)
+					{
+						if ((mID == previous_ID) && (previous_instruction == DynamixelAnalyzer::READ))
+							mData[12] = previous_reg_start;
+						else
+							mData[12] = 0xff;
+					}
+
 					frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8)) |
-					((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
+						((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
+				}
 				else
 					frame.mData2 = current_byte;	// in error frame have mData2 with the checksum byte. 
 
@@ -263,6 +279,13 @@ void DynamixelAnalyzer::WorkerThread()
 					mResults->AddFrame(frame);
 					ReportProgress(frame.mEndingSampleInclusive);
 				}
+				previous_ID = mID;
+				previous_instruction = mInstruction;
+				if (previous_instruction == DynamixelAnalyzer::READ)
+					previous_reg_start = mData[0];	// 0 should be reg start...
+				else
+					previous_reg_start = 0xff;		// Not read...
+
 			break;
 		}
 		mChecksum += current_byte;
