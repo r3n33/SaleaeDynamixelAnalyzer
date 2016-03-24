@@ -20,6 +20,8 @@ public:
 	virtual void GenerateTransactionTabularText( U64 transaction_id, DisplayBase display_base );
 
 protected: //functions
+	const char * GetServoRegisterName(U8 servo_id, U16 register_number);
+	bool IsServoRegisterStartOfPair(U8 servo_id, U16 register_number);
 
 protected:  //vars
 	DynamixelAnalyzerSettings* mSettings;

@@ -4,6 +4,7 @@
 #include <AnalyzerSettings.h>
 #include <AnalyzerTypes.h>
 
+enum {SERVO_TYPE_AX, SERVO_TYPE_MX};
 class DynamixelAnalyzerSettings : public AnalyzerSettings
 {
 public:
@@ -18,10 +19,15 @@ public:
 	
 	Channel mInputChannel;
 	U32 mBitRate;
+	U32 mServoType;
+	bool mShowWords;
 
 protected:
 	std::auto_ptr< AnalyzerSettingInterfaceChannel >	mInputChannelInterface;
 	std::auto_ptr< AnalyzerSettingInterfaceInteger >	mBitRateInterface;
+	std::auto_ptr< AnalyzerSettingInterfaceNumberList >	mServoTypeInterface;
+	std::auto_ptr< AnalyzerSettingInterfaceBool >	    mShowWordsInterface;
+
 };
 
 #endif //DYNAMIXEL_ANALYZER_SETTINGS
