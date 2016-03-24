@@ -5,7 +5,7 @@
 DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 :	mInputChannel( UNDEFINED_CHANNEL ),
 	mBitRate( 1000000 ),
-	mServoType ( 0 ), 
+	mServoType (SERVO_TYPE_AX),
 	mShowWords ( true )
 {
 	mInputChannelInterface.reset( new AnalyzerSettingInterfaceChannel() );
@@ -20,8 +20,8 @@ DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 
 	mServoTypeInterface.reset(new AnalyzerSettingInterfaceNumberList());
 	mServoTypeInterface->SetTitleAndTooltip("", "Type of Servos.");
-	mServoTypeInterface->AddNumber(0, "AX Servos (default)", "");
-	mServoTypeInterface->AddNumber(1, "MX Servos", "");
+	mServoTypeInterface->AddNumber(SERVO_TYPE_AX, "AX Servos (default)", "");
+	mServoTypeInterface->AddNumber(SERVO_TYPE_MX, "MX Servos", "");
 	mServoTypeInterface->SetNumber(mServoType);
 
 	mShowWordsInterface.reset(new AnalyzerSettingInterfaceBool());
