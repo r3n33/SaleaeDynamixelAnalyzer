@@ -22,6 +22,7 @@ DynamixelAnalyzerSettings::DynamixelAnalyzerSettings()
 	mServoTypeInterface->SetTitleAndTooltip("", "Type of Servos.");
 	mServoTypeInterface->AddNumber(SERVO_TYPE_AX, "AX Servos (default)", "");
 	mServoTypeInterface->AddNumber(SERVO_TYPE_MX, "MX Servos", "");
+	mServoTypeInterface->AddNumber(SERVO_TYPE_XL, "XL Servos", "");
 	mServoTypeInterface->SetNumber(mServoType);
 
 	mShowWordsInterface.reset(new AnalyzerSettingInterfaceBool());

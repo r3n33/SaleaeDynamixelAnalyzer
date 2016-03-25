@@ -58,6 +58,25 @@ static const U8 s_is_mx_register_pair_start[] = {
 	0, 0, 0, 0, 1, 0, 0, 1, 0, 0
 };
 
+// XL Servos
+static const char * s_xl_register_names[] = {
+	"MODEL", "MODEL_H", "VER","ID","BAUD","DELAY","CWL","CWL_H",
+	"CCWL","CCWL_H","?","CMODE", "LTEMP","LVOLTD","LVOLTU",	"MTORQUE", 
+	"MTORQUE_H", "RLEVEL", "ASHUT","?","?","?","?","?",
+	/** RAM AREA **/
+	"TENABLE","LED","DGAIN","IGAIN","PGAIN","?","GOAL","GOAL_H",
+	"GSPEED","GSPEED_H","?", "TLIMIT","TLIMIT_H","PPOS","PPOS_H","PSPEED",
+	"PSPEED_H", "PLOAD","PLOAD_H","?", "?","PVOLT", "PTEMP","RINST",
+	//0x30
+	"?","MOVING","HSTAT", "PUNCH","PUNCH_H"
+};
+
+static const U8 s_is_xl_register_pair_start[] = {
+	1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
+	1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0,
+	0, 0, 0, 1, 
+};
 
 //=============================================================================
 // class DynamixelAnalyzerResults 
@@ -846,15 +865,23 @@ void DynamixelAnalyzerResults::GenerateTransactionTabularText( U64 transaction_i
 
 const char * DynamixelAnalyzerResults::GetServoRegisterName(U8 servo_id, U16 register_number)
 {
-	if (mSettings->mServoType == SERVO_TYPE_AX)
+
+	switch (mSettings->mServoType)
 	{
+	case SERVO_TYPE_AX:
 		if (register_number < (sizeof(s_ax_register_names) / sizeof(s_ax_register_names[0])))
 			return s_ax_register_names[register_number];
-	}
-	else if (mSettings->mServoType == SERVO_TYPE_MX)
-	{
+		break;
+
+	case SERVO_TYPE_MX:
 		if (register_number < (sizeof(s_mx_register_names) / sizeof(s_mx_register_names[0])))
 			return s_mx_register_names[register_number];
+		break;
+
+	case SERVO_TYPE_XL:
+		if (register_number < (sizeof(s_xl_register_names) / sizeof(s_xl_register_names[0])))
+			return s_xl_register_names[register_number];
+		break;
 	}
 	return NULL;
 }
@@ -862,13 +889,17 @@ const char * DynamixelAnalyzerResults::GetServoRegisterName(U8 servo_id, U16 reg
 
 bool DynamixelAnalyzerResults::IsServoRegisterStartOfPair(U8 servo_id, U16 register_number)
 {
-	if (mSettings->mServoType == SERVO_TYPE_AX)
+	switch (mSettings->mServoType)
 	{
+	case SERVO_TYPE_AX:
 		return (mSettings->mShowWords && (register_number < sizeof(s_is_ax_register_pair_start)) && s_is_ax_register_pair_start[register_number]);
-	}
-	else if (mSettings->mServoType == SERVO_TYPE_MX)
-	{
+
+	case SERVO_TYPE_MX:
 		return (mSettings->mShowWords && (register_number < sizeof(s_is_mx_register_pair_start)) && s_is_mx_register_pair_start[register_number]);
+
+	case SERVO_TYPE_XL:
+		return (mSettings->mShowWords && (register_number < sizeof(s_is_xl_register_pair_start)) && s_is_xl_register_pair_start[register_number]);
+		break;
 	}
 	return false;
 }

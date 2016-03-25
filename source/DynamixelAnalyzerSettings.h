@@ -4,7 +4,7 @@
 #include <AnalyzerSettings.h>
 #include <AnalyzerTypes.h>
 
-enum {SERVO_TYPE_AX, SERVO_TYPE_MX};
+enum {SERVO_TYPE_AX, SERVO_TYPE_MX, SERVO_TYPE_XL};
 class DynamixelAnalyzerSettings : public AnalyzerSettings
 {
 public:
