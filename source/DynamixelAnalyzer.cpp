@@ -175,6 +175,8 @@ void DynamixelAnalyzer::WorkerThread()
 				DecodeIndex = DE_DATA;
 				mResults->AddMarker( mSerial->GetSampleNumber(), AnalyzerResults::DownArrow, mSettings->mInputChannel );
 				if ( mLength == 2 ) DecodeIndex = DE_CHECKSUM;
+				for (U8 i = 0; i < 13; i++)
+					mData[i] = 0;	// Lets clear out any data for the heck of it...
 			break;
 			case DE_DATA:
 				mData[ mCount++ ] = current_byte;
@@ -205,8 +207,9 @@ void DynamixelAnalyzer::WorkerThread()
 				// Lets build our Frame. Right now all are done same way, except lets try to special case SYNC_WRITE, as we won't likely fit all 
 				// of the data into one frame... So break out each servos part as their own frame 
 				frame.mType = mInstruction;		// Save the packet type in mType
-				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8)) | (mData[0] << (3 * 8)) |  // encode id and length and checksum + 5 data bytes
-						((U64)mData[1] << (4 * 8)) | ((U64)mData[2] << (5 * 8)) | ((U64)mData[3] << (6 * 8)) | ((U64)mData[4] << (7 * 8));
+				frame.mData1 = mID | (mChecksum << (1 * 8)) | (mLength << (2 * 8));
+				for (U8 i = 0; i < 5; i++)
+					frame.mData1 |= (((U64)(mData[i])) << ((i + 3) * 8));
 
 				// Use mData2 to store up to 8 bytes of the packet data. 
 				if (frame.mFlags == 0)
@@ -221,8 +224,9 @@ void DynamixelAnalyzer::WorkerThread()
 							mData[12] = 0xff;
 					}
 
-					frame.mData2 = (mData[5] << (0 * 8)) | (mData[6] << (1 * 8)) | (mData[7] << (2 * 8)) | (mData[8] << (3 * 8)) |
-						((U64)mData[9] << (4 * 8)) | ((U64)mData[10] << (5 * 8)) | ((U64)mData[11] << (6 * 8)) | ((U64)mData[12] << (7 * 8));
+					frame.mData2 = mData[5];
+					for (U8 i = 1; i < 8; i++)
+						frame.mData2 |= (((U64)(mData[i+5])) << (i * 8));
 				}
 				else
 					frame.mData2 = current_byte;	// in error frame have mData2 with the checksum byte. 
