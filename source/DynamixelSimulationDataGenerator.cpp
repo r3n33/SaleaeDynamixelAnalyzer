@@ -4,7 +4,7 @@
 #include <AnalyzerHelpers.h>
 
 // Add some delays into generated test 
-static const char s_dxl_packets[] = { 	
+static const U8 s_dxl_packets[] = {
 	// First byte is count... 
 	0x8, 0xff, 0xff, 0x01, 0x04, 0x02, 0x2b, 0x01, 0xcc, //Read temp of ID1
 	0x8, 0xff, 0xff, 0xfe, 0x04, 0x03, 0x03, 0x01, 0xf6, //Write ID1 to broadcast
@@ -17,7 +17,7 @@ static const char s_dxl_packets[] = {
 	     0x00, 0x12, 0x00, 0x06, 0x00, 0x0b, 0x00, 0x11, 0x00, 0x05, 0x00, 0x14, 0x00, 0x15, 0x00, 0x53, 
 	0x0				 };									// End of list	
 DynamixelSimulationDataGenerator::DynamixelSimulationDataGenerator()
-:	mSerialText( s_dxl_packets ),
+:	mSerialText( (const char *)s_dxl_packets ),
 	mStringIndex( 0 ), mPacketIndex(0)
 {
 }

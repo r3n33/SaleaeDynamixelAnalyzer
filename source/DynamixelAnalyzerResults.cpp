@@ -133,7 +133,6 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 	// frame.mType has our = packet type
 	// mData1 bytes low to high ID, Checksum, length, data0-data4
 	// mData2  data5-12
-	bool fShowWords = mSettings->mShowWords;	// see if we are setup to show words when appropriate. 
 	char id_str[20];
 	U8 servo_id = frame.mData1 & 0xff;
 	AnalyzerHelpers::GetNumberString(servo_id, display_base, 8, id_str, sizeof(id_str));
@@ -181,7 +180,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		ss << "RD(" << id_str << ") REG: " << reg_start_str;
 		AddResultString(ss.str().c_str());
 		
-		if (pregister_name = GetServoRegisterName(servo_id, reg_start)) 
+		if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 		{
 			ss << "(" << pregister_name << ")";
 			AddResultString(ss.str().c_str());
@@ -251,7 +250,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 					// need to special case index 4 as it splits the two mdata members
 					U32 wval;
 					if (index_data_byte == 4) {
-						wval = ((frame.mData2 & 0xff) << 8) | (shift_data & 0xff);
+						wval = ((U16)(frame.mData2 & 0xff) << 8) | (shift_data & 0xff);
 						shift_data = frame.mData2 >> 8;		// setup for next one
 					}
 					else {
@@ -279,7 +278,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 			AddResultString(short_command_str, ss.str().c_str());
 			AddResultString(long_command_str, ss.str().c_str());
 			
-			if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+			if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 			{
 				AddResultString(short_command_str, "(", pregister_name, ")", ss.str().c_str());
 				AddResultString(long_command_str, "(", pregister_name, ")", ss.str().c_str());
@@ -326,7 +325,7 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		ss << " LEN:" << reg_count_str;
 		AddResultString("SW", ss.str().c_str());
 
-		if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+		if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 		{
 			ss << " REG: " << reg_start_str << "(" << pregister_name
 				<< ") LEN: " << reg_count_str;
@@ -505,7 +504,7 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 		U8 reg_count = (frame.mData1 >> (4 * 8)) & 0xff;
 		AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, sizeof(reg_start_str));
 
-		if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+		if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 			reg_start_name_str_ptr = pregister_name;
 		else
 			reg_start_name_str_ptr = "";
@@ -643,7 +642,7 @@ void DynamixelAnalyzerResults::GenerateExportFile( const char* file, DisplayBase
 				if (reg_start != 0xff)
 				{
 					AnalyzerHelpers::GetNumberString(reg_start, display_base, 8, reg_start_str, sizeof(reg_start_str));
-					if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+					if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 						reg_start_name_str_ptr = pregister_name;
 					else
 						reg_start_name_str_ptr = "";
@@ -722,7 +721,6 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 	Frame frame = GetFrame(frame_index);
 	bool Package_Handled = false;
 	U8 Packet_length = (frame.mData1 >> (2 * 8)) & 0xff;
-	bool fShowWords = mSettings->mShowWords;	// see if we are setup to show words when appropriate. 
 	const char *pregister_name;
 
 
@@ -766,7 +764,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, sizeof(reg_count));
 
 		ss << "RD " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
-		if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+		if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 		{
 			ss <<" - ";
 			ss << pregister_name;
@@ -836,7 +834,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 				ss << w_str;
 			}
 
-			if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+			if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 			{
 				ss << " - " << pregister_name;
 			}
@@ -862,7 +860,7 @@ void DynamixelAnalyzerResults::GenerateFrameTabularText( U64 frame_index, Displa
 		AnalyzerHelpers::GetNumberString((frame.mData1 >> (4 * 8)) & 0xff, display_base, 8, reg_count, sizeof(reg_count));
 
 		ss <<"SW " << id_str << ": R:" << reg_start_str << " L:" << reg_count;
-		if (pregister_name = GetServoRegisterName(servo_id, reg_start))
+		if ((pregister_name = GetServoRegisterName(servo_id, reg_start)))
 		{
 			ss << " - " << pregister_name;
 		}

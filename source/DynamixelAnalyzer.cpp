@@ -59,9 +59,9 @@ void DynamixelAnalyzer::WorkerThread()
 		mSerial->AdvanceToNextEdge();
 
 	U32 samples_per_bit = mSampleRateHz / mSettings->mBitRate;
-	U32 samples_to_first_center_of_first_current_byte_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
+//	U32 samples_to_first_center_of_first_current_byte_bit = U32( 1.5 * double( mSampleRateHz ) / double( mSettings->mBitRate ) );
 
-	U64 starting_sample;
+	U64 starting_sample = 0;
 	U64 data_samples_starting[256];		// Hold starting positions for all possible data byte positions. 
 
 	U8 previous_ID = 0xff;
@@ -99,9 +99,7 @@ void DynamixelAnalyzer::WorkerThread()
 				}
 				else if (DecodeIndex == DE_DATA)
 				{
-					// Test should not be needed, but to be safe
-					if (mCount < (sizeof(data_samples_starting)/sizeof(data_samples_starting[0])))
-						data_samples_starting[mCount] = mSerial->GetSampleNumber();
+                    data_samples_starting[mCount] = mSerial->GetSampleNumber();
 				}
 			}
 
