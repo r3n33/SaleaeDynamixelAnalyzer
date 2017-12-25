@@ -195,7 +195,6 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 
 	{
 		// Assume packet must have at least two data bytes: starting register and at least one byte.
-		U8 reg_start = (frame.mData1 >> (4 * 8)) & 0xff;
 		U8 count_data_bytes = Packet_length - 3;
 
 		// Need to redo as length is calculated. 
@@ -229,9 +228,9 @@ void DynamixelAnalyzerResults::GenerateBubbleText(U64 frame_index, Channel& chan
 		// Try to build string showing bytes
 		if (count_data_bytes > 0)
 		{
-			ss << "D: ";
+			ss << " D: ";
 			char w_str[20];
-			U64 shift_data = frame.mData1 >> (3 * 8);
+			U64 shift_data = frame.mData1 >> (4 * 8);
 			// for more bytes lets try concatenating strings... 
 
 			if (count_data_bytes > 13)
