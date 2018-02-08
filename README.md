@@ -13,6 +13,17 @@ This analyzer was built with the current versions of the SDK (1.1.32) for the cu
 
 This is a WIP and there are no guarantees of any kind.  Use at your own risk.
 
+# Limitations
+
+The currently released version only supports Protocol 1 packets. Up till now I have only owned AX-12 servos with maybe one or two AX-18 servos.
+
+I am currently experimenting with the new XL430-W250 servos, so I started adding Protocol 2 support.
+In this branch I added this Servo type to the types of servos.
+
+The WIP version that supports Protocol 2 packets can be found in the WIP---Protocol2-support branch
+
+https://github.com/KurtE/SaleaeDynamixelAnalyzer/tree/WIP---Protocol2-support
+
 # Exporting
 
 CSV export: WIP
