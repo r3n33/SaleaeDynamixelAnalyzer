@@ -1,0 +1,309 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		452540821CAA068800A1F82A /* DynamixelAnalyzer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4525407A1CAA068800A1F82A /* DynamixelAnalyzer.cpp */; };
+		452540831CAA068800A1F82A /* DynamixelAnalyzer.h in Headers */ = {isa = PBXBuildFile; fileRef = 4525407B1CAA068800A1F82A /* DynamixelAnalyzer.h */; };
+		452540841CAA068800A1F82A /* DynamixelAnalyzerResults.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4525407C1CAA068800A1F82A /* DynamixelAnalyzerResults.cpp */; };
+		452540851CAA068800A1F82A /* DynamixelAnalyzerResults.h in Headers */ = {isa = PBXBuildFile; fileRef = 4525407D1CAA068800A1F82A /* DynamixelAnalyzerResults.h */; };
+		452540861CAA068800A1F82A /* DynamixelAnalyzerSettings.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4525407E1CAA068800A1F82A /* DynamixelAnalyzerSettings.cpp */; };
+		452540871CAA068800A1F82A /* DynamixelAnalyzerSettings.h in Headers */ = {isa = PBXBuildFile; fileRef = 4525407F1CAA068800A1F82A /* DynamixelAnalyzerSettings.h */; };
+		452540881CAA068800A1F82A /* DynamixelSimulationDataGenerator.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 452540801CAA068800A1F82A /* DynamixelSimulationDataGenerator.cpp */; };
+		452540891CAA068800A1F82A /* DynamixelSimulationDataGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = 452540811CAA068800A1F82A /* DynamixelSimulationDataGenerator.h */; };
+		4525408B1CAA08D600A1F82A /* libAnalyzer.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 4525408A1CAA08D600A1F82A /* libAnalyzer.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		452540681CAA062000A1F82A /* DynamixelAnalyzer.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzer.cpp; sourceTree = "<group>"; };
+		452540691CAA062000A1F82A /* DynamixelAnalyzer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzer.h; sourceTree = "<group>"; };
+		4525406A1CAA062000A1F82A /* DynamixelAnalyzerResults.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzerResults.cpp; sourceTree = "<group>"; };
+		4525406B1CAA062000A1F82A /* DynamixelAnalyzerResults.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzerResults.h; sourceTree = "<group>"; };
+		4525406C1CAA062000A1F82A /* DynamixelAnalyzerSettings.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzerSettings.cpp; sourceTree = "<group>"; };
+		4525406D1CAA062000A1F82A /* DynamixelAnalyzerSettings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzerSettings.h; sourceTree = "<group>"; };
+		4525406E1CAA062000A1F82A /* DynamixelSimulationDataGenerator.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelSimulationDataGenerator.cpp; sourceTree = "<group>"; };
+		4525406F1CAA062000A1F82A /* DynamixelSimulationDataGenerator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DynamixelSimulationDataGenerator.h; sourceTree = "<group>"; };
+		452540741CAA066E00A1F82A /* libSaleaeDynamixelAnalyzer.dylib */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = libSaleaeDynamixelAnalyzer.dylib; sourceTree = BUILT_PRODUCTS_DIR; };
+		4525407A1CAA068800A1F82A /* DynamixelAnalyzer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzer.cpp; sourceTree = "<group>"; };
+		4525407B1CAA068800A1F82A /* DynamixelAnalyzer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzer.h; sourceTree = "<group>"; };
+		4525407C1CAA068800A1F82A /* DynamixelAnalyzerResults.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzerResults.cpp; sourceTree = "<group>"; };
+		4525407D1CAA068800A1F82A /* DynamixelAnalyzerResults.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzerResults.h; sourceTree = "<group>"; };
+		4525407E1CAA068800A1F82A /* DynamixelAnalyzerSettings.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelAnalyzerSettings.cpp; sourceTree = "<group>"; };
+		4525407F1CAA068800A1F82A /* DynamixelAnalyzerSettings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DynamixelAnalyzerSettings.h; sourceTree = "<group>"; };
+		452540801CAA068800A1F82A /* DynamixelSimulationDataGenerator.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DynamixelSimulationDataGenerator.cpp; sourceTree = "<group>"; };
+		452540811CAA068800A1F82A /* DynamixelSimulationDataGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DynamixelSimulationDataGenerator.h; sourceTree = "<group>"; };
+		4525408A1CAA08D600A1F82A /* libAnalyzer.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libAnalyzer.dylib; path = ../lib/libAnalyzer.dylib; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		452540711CAA066E00A1F82A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4525408B1CAA08D600A1F82A /* libAnalyzer.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		452540601CAA044000A1F82A = {
+			isa = PBXGroup;
+			children = (
+				4525408A1CAA08D600A1F82A /* libAnalyzer.dylib */,
+				452540791CAA068800A1F82A /* source */,
+				452540671CAA062000A1F82A /* source */,
+				452540751CAA066E00A1F82A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		452540671CAA062000A1F82A /* source */ = {
+			isa = PBXGroup;
+			children = (
+				452540681CAA062000A1F82A /* DynamixelAnalyzer.cpp */,
+				452540691CAA062000A1F82A /* DynamixelAnalyzer.h */,
+				4525406A1CAA062000A1F82A /* DynamixelAnalyzerResults.cpp */,
+				4525406B1CAA062000A1F82A /* DynamixelAnalyzerResults.h */,
+				4525406C1CAA062000A1F82A /* DynamixelAnalyzerSettings.cpp */,
+				4525406D1CAA062000A1F82A /* DynamixelAnalyzerSettings.h */,
+				4525406E1CAA062000A1F82A /* DynamixelSimulationDataGenerator.cpp */,
+				4525406F1CAA062000A1F82A /* DynamixelSimulationDataGenerator.h */,
+			);
+			path = source;
+			sourceTree = "<group>";
+		};
+		452540751CAA066E00A1F82A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				452540741CAA066E00A1F82A /* libSaleaeDynamixelAnalyzer.dylib */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		452540791CAA068800A1F82A /* source */ = {
+			isa = PBXGroup;
+			children = (
+				4525407A1CAA068800A1F82A /* DynamixelAnalyzer.cpp */,
+				4525407B1CAA068800A1F82A /* DynamixelAnalyzer.h */,
+				4525407C1CAA068800A1F82A /* DynamixelAnalyzerResults.cpp */,
+				4525407D1CAA068800A1F82A /* DynamixelAnalyzerResults.h */,
+				4525407E1CAA068800A1F82A /* DynamixelAnalyzerSettings.cpp */,
+				4525407F1CAA068800A1F82A /* DynamixelAnalyzerSettings.h */,
+				452540801CAA068800A1F82A /* DynamixelSimulationDataGenerator.cpp */,
+				452540811CAA068800A1F82A /* DynamixelSimulationDataGenerator.h */,
+			);
+			path = source;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		452540721CAA066E00A1F82A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				452540831CAA068800A1F82A /* DynamixelAnalyzer.h in Headers */,
+				452540891CAA068800A1F82A /* DynamixelSimulationDataGenerator.h in Headers */,
+				452540851CAA068800A1F82A /* DynamixelAnalyzerResults.h in Headers */,
+				452540871CAA068800A1F82A /* DynamixelAnalyzerSettings.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		452540731CAA066E00A1F82A /* SaleaeDynamixelAnalyzer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 452540761CAA066E00A1F82A /* Build configuration list for PBXNativeTarget "SaleaeDynamixelAnalyzer" */;
+			buildPhases = (
+				452540701CAA066E00A1F82A /* Sources */,
+				452540711CAA066E00A1F82A /* Frameworks */,
+				452540721CAA066E00A1F82A /* Headers */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SaleaeDynamixelAnalyzer;
+			productName = SaleaeDynamixelAnalyzer;
+			productReference = 452540741CAA066E00A1F82A /* libSaleaeDynamixelAnalyzer.dylib */;
+			productType = "com.apple.product-type.library.dynamic";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		452540611CAA044000A1F82A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0730;
+				TargetAttributes = {
+					452540731CAA066E00A1F82A = {
+						CreatedOnToolsVersion = 7.3;
+					};
+				};
+			};
+			buildConfigurationList = 452540641CAA044000A1F82A /* Build configuration list for PBXProject "SaleaeDynamixelAnalyzer" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 452540601CAA044000A1F82A;
+			productRefGroup = 452540751CAA066E00A1F82A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				452540731CAA066E00A1F82A /* SaleaeDynamixelAnalyzer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		452540701CAA066E00A1F82A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				452540841CAA068800A1F82A /* DynamixelAnalyzerResults.cpp in Sources */,
+				452540861CAA068800A1F82A /* DynamixelAnalyzerSettings.cpp in Sources */,
+				452540881CAA068800A1F82A /* DynamixelSimulationDataGenerator.cpp in Sources */,
+				452540821CAA068800A1F82A /* DynamixelAnalyzer.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		452540651CAA044000A1F82A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		452540661CAA044000A1F82A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Release;
+		};
+		452540771CAA066E00A1F82A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				EXECUTABLE_PREFIX = lib;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = ../include;
+				LIBRARY_SEARCH_PATHS = ../lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		452540781CAA066E00A1F82A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				EXECUTABLE_PREFIX = lib;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = ../include;
+				LIBRARY_SEARCH_PATHS = ../lib;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		452540641CAA044000A1F82A /* Build configuration list for PBXProject "SaleaeDynamixelAnalyzer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				452540651CAA044000A1F82A /* Debug */,
+				452540661CAA044000A1F82A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		452540761CAA066E00A1F82A /* Build configuration list for PBXNativeTarget "SaleaeDynamixelAnalyzer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				452540771CAA066E00A1F82A /* Debug */,
+				452540781CAA066E00A1F82A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 452540611CAA044000A1F82A /* Project object */;
+}

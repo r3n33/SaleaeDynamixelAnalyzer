@@ -3,6 +3,7 @@
 *.tlog
 include/
 lib/
+DerivedData/
 *.exp
 *.iobj
 *.ipdb
